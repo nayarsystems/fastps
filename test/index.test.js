@@ -295,8 +295,6 @@ test("call returns data sent with answer", async () => {
 });
 
 test("call throws exception when on error", async () => {
-  expect.assertions(1);
-
   fastps.subscribe({
     add1: msg => {
       fastps.answer(msg, null, new Error("this is an error"));
