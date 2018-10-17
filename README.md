@@ -13,7 +13,7 @@ npm install fastps
 or
 
 ```
-yarn install fastps
+yarn add fastps
 ```
 
 ## Usage
