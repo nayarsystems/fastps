@@ -20,7 +20,7 @@ yarn install fastps
 
 You can subscribe to a path (with dots as separators) and will receive messages published to that path.
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.subscribe({
@@ -34,7 +34,7 @@ fastps.publish({ to: "a.b", dat: 123 });
 
 A subscriber to a path (e.g. "a") will also receive messages published to paths that have it as a prefix (e.g. "a.b" or "a.c.d")
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.subscribe({
@@ -62,7 +62,7 @@ A message can contain the following fields:
 
 Messages with field `persist` == true will be delivered to subscribers that susbcribe after it has been published.
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.publish({ to: "a", dat: "Hi!", persist: true });
@@ -76,7 +76,7 @@ fastps.subscribe({
 
 When several messages are published to a path with `persist` == true subscribers will receive the most recent one when subscribing.
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.publish({ to: "a", dat: "Hi!", persist: true });
@@ -93,7 +93,7 @@ fastps.subscribe({
 
 If you send a message with `noPropagate` == true it will not be received by subscribers of parent paths
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.subscribe({
@@ -112,7 +112,7 @@ You can put a path on the message field `res` so answers to it will be received 
 
 To answer a message just call `msg.answer(data, error)`
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.subscribe({
@@ -129,7 +129,7 @@ fastps.publish({ to: "a", dat: "Hi!", res: "b" });
 
 You can also send an error when answering a message.
 
-```
+```javascript
 var fastps = require("fastps");
 
 fastps.subscribe({
