@@ -12,7 +12,7 @@
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
     "flow": "flow",
-    "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm dist/* && npm run build"
+    "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && npm run build"
   },
   "files": [
     "dist"
