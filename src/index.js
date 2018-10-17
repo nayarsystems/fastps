@@ -1,7 +1,7 @@
 // @flow
 
 let subs /* :  { [string]: Set<Subscriber> } */ = {};
-let oldMsgs /* :  { [string]: Array<Msg> } */ = {};
+let oldMsgs /* :  { [string]: Msg } */ = {};
 let respCnt /* : number */ = 0;
 
 /* :: type Cfg = { [string]: (msg: Msg) => void };  */
@@ -45,9 +45,8 @@ class Subscriber {
       subs[path].add(this);
 
       if (path in oldMsgs) {
-        oldMsgs[path].forEach(msg => {
-          this._process(path, msg);
-        });
+        const oldMsg = oldMsgs[path];
+        this._process(path, oldMsg);
       }
     });
   }
@@ -130,11 +129,7 @@ function publish(msg /* : Msg */) {
   }
 
   if (msg.persist) {
-    if (!(msg.to in oldMsgs)) {
-      oldMsgs[msg.to] = [];
-    }
-
-    oldMsgs[msg.to].push({ ...msg, old: true });
+    oldMsgs[msg.to] = { ...msg, old: true };
   }
 }
 

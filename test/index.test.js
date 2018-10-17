@@ -40,6 +40,34 @@ test("subscribe to multiple paths", () => {
   expect(receivedB).toStrictEqual([{ to: "b", dat: 2 }]);
 });
 
+test("publish message to unsubscribed path", () => {
+  const received = [];
+
+  fastps.subscribe({
+    a: msg => {
+      received.push(msg);
+    }
+  });
+
+  fastps.publish({ to: "b", dat: 123 });
+
+  expect(received).toStrictEqual([]);
+});
+
+test("publish message to unsubscribed path with noPropagate", () => {
+  const received = [];
+
+  fastps.subscribe({
+    a: msg => {
+      received.push(msg);
+    }
+  });
+
+  fastps.publish({ to: "b", dat: 123, noPropagate: true });
+
+  expect(received).toStrictEqual([]);
+});
+
 test("unsubscribe from all paths", () => {
   const receivedA = [];
   const receivedB = [];
@@ -88,6 +116,22 @@ test("unsubscribe from some paths", () => {
   expect(receivedA).toStrictEqual([]);
   expect(receivedB).toStrictEqual([]);
   expect(receivedC).toStrictEqual([{ to: "c", dat: 3 }]);
+});
+
+test("unsubscribe from non-existing paths", () => {
+  const receivedA = [];
+
+  const sub = fastps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    }
+  });
+
+  sub.unsubscribe("c");
+
+  fastps.publish({ to: "a", dat: 1 });
+
+  expect(receivedA).toStrictEqual([{ to: "a", dat: 1 }]);
 });
 
 test("add subscriptions to existing subscriber", () => {
@@ -221,6 +265,42 @@ test("messages published with persist==true are available for late subscribers",
   ]);
 });
 
+test("subscribers to messages published with persist==true get the last value", () => {
+  const receivedA = [];
+
+  fastps.publish({ to: "a", dat: 1, persist: true });
+  fastps.publish({ to: "a", dat: 2, persist: true });
+
+  fastps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    }
+  });
+
+  expect(receivedA).toStrictEqual([
+    {
+      to: "a",
+      dat: 2,
+      persist: true,
+      old: true
+    }
+  ]);
+});
+
+test("messages published with persist==true on other paths should not be received by late subscribers", () => {
+  const receivedB = [];
+
+  fastps.publish({ to: "a", dat: 1, persist: true });
+
+  fastps.subscribe({
+    b: msg => {
+      receivedB.push(msg);
+    }
+  });
+
+  expect(receivedB).toStrictEqual([]);
+});
+
 test("messages published with persist==true are not available parent subscribers", () => {
   const receivedA = [];
 
@@ -266,6 +346,23 @@ test("answer message", () => {
   fastps.publish({ to: "a", dat: 1, res: "b" });
 
   expect(receivedB).toStrictEqual([{ to: "b", dat: 4, err: "some error" }]);
+});
+
+test("answer to message without res should not publish anything", () => {
+  const receivedA = [];
+
+  fastps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    },
+    "a.b": msg => {
+      fastps.answer(msg, 4, "some error");
+    }
+  });
+
+  fastps.publish({ to: "a.b", dat: 1 });
+
+  expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1 }]);
 });
 
 test("answer doesn't modify original message", () => {
