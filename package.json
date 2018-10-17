@@ -37,7 +37,8 @@
       "!**/dist/**",
       "!**/coverage/**",
       "!**/flow-typed/**",
-      "!webpack.config.js"
+      "!webpack.config.js",
+      "!.eslintrc.js"
     ]
   }
 }
