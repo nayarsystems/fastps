@@ -32,7 +32,7 @@ fastps.subscribe({
 fastps.publish({ to: "a.b", dat: 123 });
 ```
 
-A subscriber to a path (e.g. "a") will receive messages published to paths that have it as a prefix (e.g. "a.b" or "a.c.d")
+A subscriber to a path (e.g. "a") will also receive messages published to paths that have it as a prefix (e.g. "a.b" or "a.c.d")
 
 ```
 var fastps = require("fastps");
