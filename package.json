@@ -28,5 +28,16 @@
     "webpack": "^4.20.2",
     "webpack-cli": "^3.1.2"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "jest": {
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "**/*.{js}",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/coverage/**",
+      "!**/flow-typed/**",
+      "!webpack.config.js"
+    ]
+  }
 }
