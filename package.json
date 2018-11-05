@@ -1,6 +1,6 @@
 {
   "name": "fastps",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Simple pub/sub",
   "author": "Angel Jimenez <ajimenez@nayarsystems.com>",
   "license": "MIT",
