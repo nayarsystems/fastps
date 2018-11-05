@@ -47,6 +47,48 @@ fastps.publish({ to: "a.b", dat: 123 });
 fastps.publish({ to: "a.c.d", dat: 456 });
 ```
 
+### Subscriber object
+
+Calls to `subscribe` return a subscriber object on which you can call the following methods:
+
+- `subscribe(cfg)`: add subscription to subscriber (receives same param as `fastps.subscribe`).
+- `unsubscribe(path1, path2...)`: Unsubscribes from those paths.
+- `unsubscribeAll()`: Removes all subscriptions from subscriber.
+
+This code:
+
+```javascript
+var fastps = require("fastps");
+
+var sub = fastps.subscribe({
+  a: msg => {
+    console.log("a: msg=", msg);
+  },
+  b: msg => {
+    console.log("b: msg=", msg);
+  }
+});
+
+sub.unsubscribe("b");
+
+sub.subscribe({
+  c: msg => {
+    console.log("c: msg=", msg);
+  }
+});
+
+fastps.publish({ to: "a", dat: 1 });
+fastps.publish({ to: "b", dat: 2 });
+fastps.publish({ to: "c", dat: 2 });
+```
+
+will print:
+
+```
+a: msg= { to: 'a', dat: 1 }
+c: msg= { to: 'c', dat: 2 }
+```
+
 ### Message fields
 
 A message can contain the following fields:
