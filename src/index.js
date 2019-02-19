@@ -1,9 +1,5 @@
 // @flow
 
-let subs /* :  { [string]: Set<Subscriber> } */ = {};
-let oldMsgs /* :  { [string]: Msg } */ = {};
-let respCnt /* : number */ = 0;
-
 /* :: type Cfg = { [string]: (msg: Msg) => void };  */
 
 /* :: type Msg = { 
@@ -21,7 +17,8 @@ let respCnt /* : number */ = 0;
 class Subscriber {
   /* :: cfg: Cfg; */
 
-  constructor() {
+  constructor(pubsub) {
+    this.ps = pubsub;
     this.cfg = {};
   }
 
@@ -36,19 +33,7 @@ class Subscriber {
    */
   subscribe(cfg /* : Cfg */) {
     Object.assign(this.cfg, cfg);
-
-    Object.keys(cfg).forEach(path => {
-      if (!(path in subs)) {
-        subs[path] = new Set();
-      }
-
-      subs[path].add(this);
-
-      if (path in oldMsgs) {
-        const oldMsg = oldMsgs[path];
-        this._process(path, oldMsg);
-      }
-    });
+    this.ps._subscribe(cfg, this);
   }
 
   /**
@@ -58,10 +43,7 @@ class Subscriber {
     paths.forEach(path => {
       if (path in this.cfg) {
         delete this.cfg[path];
-
-        if (path in subs) {
-          subs[path].delete(this);
-        }
+        this.ps._unsubscribe(path, this);
       }
     });
   }
@@ -70,6 +52,7 @@ class Subscriber {
    * Unsubscribe from all paths on this subscriber
    */
   unsubscribeAll() {
+    // TODO: variadic expand
     Object.keys(this.cfg).forEach(path => {
       this.unsubscribe(path);
     });
@@ -83,103 +66,125 @@ class Subscriber {
   }
 }
 
-/**
- * Remove all subscribed paths
- */
-function unsubscribeAll() {
-  subs = {};
-  oldMsgs = {};
-}
+class PubSub {
+  constructor() {
+    this.subs /* :  { [string]: Set<Subscriber> } */ = {};
+    this.oldMsgs /* :  { [string]: Msg } */ = {};
+    this.respCnt /* : number */ = 0;
+  }
 
-/**
- * Susbcribe to paths
- */
-function subscribe(cfg /* : Cfg */) {
-  const sub = new Subscriber();
-  sub.subscribe(cfg);
-  return sub;
-}
+  /**
+   * Remove all subscribed paths
+   */
+  unsubscribeAll() {
+    this.subs = {};
+    this.oldMsgs = {};
+  }
 
-/**
- * Publish message
- */
-function publish(msg /* : Msg */) {
-  if (msg.noPropagate) {
-    if (msg.to in subs) {
-      subs[msg.to].forEach(sub => {
-        sub._process(msg.to, msg);
-      });
-    }
-  } else {
-    let path = "";
-    const subPaths = msg.to.split(".");
-    subPaths.forEach(subPath => {
-      if (path === "") {
-        path = subPath;
-      } else {
-        path = `${path}.${subPath}`;
+  /**
+   * Susbcribe to paths
+   */
+  subscribe(cfg /* : Cfg */) {
+    const sub = new Subscriber(this);
+    sub.subscribe(cfg);
+    return sub;
+  }
+
+  _subscribe(cfg, subscriber) {
+    Object.keys(cfg).forEach(path => {
+      if (!(path in this.subs)) {
+        this.subs[path] = new Set();
       }
 
-      if (path in subs) {
-        subs[path].forEach(sub => {
-          sub._process(path, msg);
+      this.subs[path].add(subscriber);
+
+      if (path in this.oldMsgs) {
+        const oldMsg = this.oldMsgs[path];
+        subscriber._process(path, oldMsg);
+      }
+    });
+  }
+
+  _unsubscribe(path, subscriber) {
+    if (path in this.subs) {
+      this.subs[path].delete(subscriber);
+    }
+  }
+
+  /**
+   * Publish message
+   */
+  publish(msg /* : Msg */) {
+    // console.log("publish msg: ", msg, "subs:", subs);
+    if (msg.noPropagate) {
+      if (msg.to in this.subs) {
+        this.subs[msg.to].forEach(sub => {
+          sub._process(msg.to, msg);
         });
       }
+    } else {
+      let path = "";
+      const subPaths = msg.to.split(".");
+      subPaths.forEach(subPath => {
+        if (path === "") {
+          path = subPath;
+        } else {
+          path = `${path}.${subPath}`;
+        }
+
+        if (path in this.subs) {
+          this.subs[path].forEach(sub => {
+            sub._process(path, msg);
+          });
+        }
+      });
+    }
+
+    if (msg.persist) {
+      this.oldMsgs[msg.to] = { ...msg, old: true };
+    }
+  }
+
+  /**
+   * Answer to message
+   */
+  answer(msg /* : Msg */, dat /* : any */, err /* : any */) {
+    if (msg.res) {
+      this.publish({ to: msg.res, dat, err });
+    }
+  }
+
+  /**
+   * Send message to path and return promise with response
+   */
+  call(to /* : string */, dat /* : any */, msgOpts /* : ?{[string]: any} */) {
+    const promise /* :Promise<any> */ = new Promise((resolve, reject) => {
+      this.respCnt += 1;
+      const res = `res-${this.respCnt}`;
+
+      let sub;
+      const cfg = {};
+      cfg[res] = (msg /* : Msg */) => {
+        if (msg.err) {
+          reject(msg.err);
+        } else {
+          resolve(msg.dat);
+        }
+        sub.unsubscribeAll();
+      };
+
+      sub = this.subscribe(cfg);
+
+      this.publish({
+        to,
+        dat,
+        res,
+        ...msgOpts
+      });
     });
-  }
 
-  if (msg.persist) {
-    oldMsgs[msg.to] = { ...msg, old: true };
+    return promise;
   }
 }
 
-/**
- * Answer to message
- */
-function answer(msg /* : Msg */, dat /* : any */, err /* : any */) {
-  if (msg.res) {
-    publish({ to: msg.res, dat, err });
-  }
-}
-
-/**
- * Send message to path and return promise with response
- */
-function call(
-  to /* : string */,
-  dat /* : any */,
-  msgOpts /* : ?{[string]: any} */
-) {
-  const promise /* :Promise<any> */ = new Promise((resolve, reject) => {
-    respCnt += 1;
-    const res = `res-${respCnt}`;
-
-    let sub;
-    const cfg = {};
-    cfg[res] = (msg /* : Msg */) => {
-      if (msg.err) {
-        reject(msg.err);
-      } else {
-        resolve(msg.dat);
-      }
-      sub.unsubscribeAll();
-    };
-
-    sub = subscribe(cfg);
-
-    publish({
-      to,
-      dat,
-      res,
-      ...msgOpts
-    });
-  });
-
-  return promise;
-}
-
-exports.subscribe = subscribe;
-exports.publish = publish;
-exports.unsubscribeAll = unsubscribeAll;
-exports.answer = answer;
-exports.call = call;
+exports.PubSub = PubSub;

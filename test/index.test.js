@@ -2,29 +2,27 @@
 
 const fastps = require("../src/index.js");
 
-afterEach(() => {
-  fastps.unsubscribeAll();
-});
-
 test("subscribe to path", () => {
+  const ps = new fastps.PubSub();
   const received = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       received.push(msg);
     }
   });
 
-  fastps.publish({ to: "a", dat: 123 });
+  ps.publish({ to: "a", dat: 123 });
 
   expect(received).toStrictEqual([{ to: "a", dat: 123 }]);
 });
 
 test("subscribe to multiple paths", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedB = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
@@ -33,46 +31,72 @@ test("subscribe to multiple paths", () => {
     }
   });
 
-  fastps.publish({ to: "a", dat: 1 });
-  fastps.publish({ to: "b", dat: 2 });
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
 
   expect(receivedA).toStrictEqual([{ to: "a", dat: 1 }]);
   expect(receivedB).toStrictEqual([{ to: "b", dat: 2 }]);
 });
 
 test("publish message to unsubscribed path", () => {
+  const ps = new fastps.PubSub();
   const received = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       received.push(msg);
     }
   });
 
-  fastps.publish({ to: "b", dat: 123 });
+  ps.publish({ to: "b", dat: 123 });
 
   expect(received).toStrictEqual([]);
 });
 
 test("publish message to unsubscribed path with noPropagate", () => {
+  const ps = new fastps.PubSub();
   const received = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       received.push(msg);
     }
   });
 
-  fastps.publish({ to: "b", dat: 123, noPropagate: true });
+  ps.publish({ to: "b", dat: 123, noPropagate: true });
 
   expect(received).toStrictEqual([]);
 });
 
 test("unsubscribe from all paths", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedB = [];
 
-  const sub = fastps.subscribe({
+  ps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    },
+    b: msg => {
+      receivedB.push(msg);
+    }
+  });
+
+  ps.unsubscribeAll();
+
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
+
+  expect(receivedA).toStrictEqual([]);
+  expect(receivedB).toStrictEqual([]);
+});
+
+test("unsubscribe from all paths on subscriber", () => {
+  const ps = new fastps.PubSub();
+  const receivedA = [];
+  const receivedB = [];
+
+  const sub = ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
@@ -83,19 +107,20 @@ test("unsubscribe from all paths", () => {
 
   sub.unsubscribeAll();
 
-  fastps.publish({ to: "a", dat: 1 });
-  fastps.publish({ to: "b", dat: 2 });
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
 
   expect(receivedA).toStrictEqual([]);
   expect(receivedB).toStrictEqual([]);
 });
 
 test("unsubscribe from some paths", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedB = [];
   const receivedC = [];
 
-  const sub = fastps.subscribe({
+  const sub = ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
@@ -109,9 +134,9 @@ test("unsubscribe from some paths", () => {
 
   sub.unsubscribe("a", "b");
 
-  fastps.publish({ to: "a", dat: 1 });
-  fastps.publish({ to: "b", dat: 2 });
-  fastps.publish({ to: "c", dat: 3 });
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
+  ps.publish({ to: "c", dat: 3 });
 
   expect(receivedA).toStrictEqual([]);
   expect(receivedB).toStrictEqual([]);
@@ -119,9 +144,10 @@ test("unsubscribe from some paths", () => {
 });
 
 test("unsubscribe from non-existing paths", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
-  const sub = fastps.subscribe({
+  const sub = ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -129,17 +155,18 @@ test("unsubscribe from non-existing paths", () => {
 
   sub.unsubscribe("c");
 
-  fastps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "a", dat: 1 });
 
   expect(receivedA).toStrictEqual([{ to: "a", dat: 1 }]);
 });
 
 test("add subscriptions to existing subscriber", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedB = [];
   const receivedC = [];
 
-  const sub = fastps.subscribe({
+  const sub = ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -154,9 +181,9 @@ test("add subscriptions to existing subscriber", () => {
     }
   });
 
-  fastps.publish({ to: "a", dat: 1 });
-  fastps.publish({ to: "b", dat: 2 });
-  fastps.publish({ to: "c", dat: 3 });
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
+  ps.publish({ to: "c", dat: 3 });
 
   expect(receivedA).toStrictEqual([{ to: "a", dat: 1 }]);
   expect(receivedB).toStrictEqual([{ to: "b", dat: 2 }]);
@@ -164,9 +191,10 @@ test("add subscriptions to existing subscriber", () => {
 });
 
 test("add existing path to subscriber", () => {
+  const ps = new fastps.PubSub();
   const received = [];
 
-  const sub = fastps.subscribe({
+  const sub = ps.subscribe({
     a: msg => {
       received.push(msg);
     }
@@ -178,13 +206,14 @@ test("add existing path to subscriber", () => {
     }
   });
 
-  fastps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "a", dat: 1 });
 
   expect(received).toStrictEqual([{ to: "a", dat: 1 }]);
 });
 
 test("get subscriptions of subscriber", () => {
-  const sub = fastps.subscribe({
+  const ps = new fastps.PubSub();
+  const sub = ps.subscribe({
     a: () => {},
     b: () => {}
   });
@@ -193,24 +222,26 @@ test("get subscriptions of subscriber", () => {
 });
 
 test("when subscribing to parent receive children messages", () => {
+  const ps = new fastps.PubSub();
   const received = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       received.push(msg);
     }
   });
 
-  fastps.publish({ to: "a.b", dat: 1 });
+  ps.publish({ to: "a.b", dat: 1 });
 
   expect(received).toStrictEqual([{ to: "a.b", dat: 1 }]);
 });
 
 test("when subscribing to parent children receives message", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedAB = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
@@ -219,17 +250,18 @@ test("when subscribing to parent children receives message", () => {
     }
   });
 
-  fastps.publish({ to: "a.b", dat: 1 });
+  ps.publish({ to: "a.b", dat: 1 });
 
   expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1 }]);
   expect(receivedAB).toStrictEqual([{ to: "a.b", dat: 1 }]);
 });
 
 test("when using noPropagate parent subscribers don't receive children message", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedAB = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
@@ -238,18 +270,19 @@ test("when using noPropagate parent subscribers don't receive children message",
     }
   });
 
-  fastps.publish({ to: "a.b", dat: 1, noPropagate: true });
+  ps.publish({ to: "a.b", dat: 1, noPropagate: true });
 
   expect(receivedA).toStrictEqual([]);
   expect(receivedAB).toStrictEqual([{ to: "a.b", dat: 1, noPropagate: true }]);
 });
 
 test("messages published with persist==true are available for late subscribers", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
-  fastps.publish({ to: "a", dat: 1, persist: true });
+  ps.publish({ to: "a", dat: 1, persist: true });
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -266,12 +299,13 @@ test("messages published with persist==true are available for late subscribers",
 });
 
 test("subscribers to messages published with persist==true get the last value", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
-  fastps.publish({ to: "a", dat: 1, persist: true });
-  fastps.publish({ to: "a", dat: 2, persist: true });
+  ps.publish({ to: "a", dat: 1, persist: true });
+  ps.publish({ to: "a", dat: 2, persist: true });
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -288,11 +322,12 @@ test("subscribers to messages published with persist==true get the last value", 
 });
 
 test("messages published with persist==true on other paths should not be received by late subscribers", () => {
+  const ps = new fastps.PubSub();
   const receivedB = [];
 
-  fastps.publish({ to: "a", dat: 1, persist: true });
+  ps.publish({ to: "a", dat: 1, persist: true });
 
-  fastps.subscribe({
+  ps.subscribe({
     b: msg => {
       receivedB.push(msg);
     }
@@ -302,11 +337,12 @@ test("messages published with persist==true on other paths should not be receive
 });
 
 test("messages published with persist==true are not available parent subscribers", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
-  fastps.publish({ to: "a.b", dat: 1, persist: true });
+  ps.publish({ to: "a.b", dat: 1, persist: true });
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -316,13 +352,14 @@ test("messages published with persist==true are not available parent subscribers
 });
 
 test("don't modify original messages sent with persist", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
   const origMsg = { to: "a", dat: 1, persist: true };
 
-  fastps.publish(origMsg);
+  ps.publish(origMsg);
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     }
@@ -332,74 +369,79 @@ test("don't modify original messages sent with persist", () => {
 });
 
 test("answer message", () => {
+  const ps = new fastps.PubSub();
   const receivedB = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
-      fastps.answer(msg, 4, "some error");
+      ps.answer(msg, 4, "some error");
     },
     b: msg => {
       receivedB.push(msg);
     }
   });
 
-  fastps.publish({ to: "a", dat: 1, res: "b" });
+  ps.publish({ to: "a", dat: 1, res: "b" });
 
   expect(receivedB).toStrictEqual([{ to: "b", dat: 4, err: "some error" }]);
 });
 
 test("answer to message without res should not publish anything", () => {
+  const ps = new fastps.PubSub();
   const receivedA = [];
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
       receivedA.push(msg);
     },
     "a.b": msg => {
-      fastps.answer(msg, 4, "some error");
+      ps.answer(msg, 4, "some error");
     }
   });
 
-  fastps.publish({ to: "a.b", dat: 1 });
+  ps.publish({ to: "a.b", dat: 1 });
 
   expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1 }]);
 });
 
 test("answer doesn't modify original message", () => {
+  const ps = new fastps.PubSub();
   const origMsg = { to: "a", dat: 1, res: "b" };
 
-  fastps.subscribe({
+  ps.subscribe({
     a: msg => {
-      fastps.answer(msg, 4, "some error");
+      ps.answer(msg, 4, "some error");
     }
   });
 
-  fastps.publish(origMsg);
+  ps.publish(origMsg);
 
   expect(origMsg).toStrictEqual({ to: "a", dat: 1, res: "b" });
 });
 
 test("call returns data sent with answer", async () => {
-  fastps.subscribe({
+  const ps = new fastps.PubSub();
+  ps.subscribe({
     add1: msg => {
-      fastps.answer(msg, msg.dat + 1);
+      ps.answer(msg, msg.dat + 1);
     }
   });
 
-  const resp = await fastps.call("add1", 1);
+  const resp = await ps.call("add1", 1);
 
   expect(resp).toStrictEqual(2);
 });
 
 test("call throws exception when on error", async () => {
-  fastps.subscribe({
+  const ps = new fastps.PubSub();
+  ps.subscribe({
     add1: msg => {
-      fastps.answer(msg, null, new Error("this is an error"));
+      ps.answer(msg, null, new Error("this is an error"));
     }
   });
 
   try {
-    await fastps.call("add1", 1);
+    await ps.call("add1", 1);
     throw new Error("should have thrown exception");
   } catch (e) {
     expect(e).toEqual(new Error("this is an error"));
