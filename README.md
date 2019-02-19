@@ -23,13 +23,15 @@ You can subscribe to a path (with dots as separators) and will receive messages 
 ```javascript
 var fastps = require("fastps");
 
-fastps.subscribe({
+var ps = new fastps.PubSub();
+
+ps.subscribe({
   "a.b": msg => {
     console.log("received:", msg);
   }
 });
 
-fastps.publish({ to: "a.b", dat: 123 });
+ps.publish({ to: "a.b", dat: 123 });
 ```
 
 A subscriber to a path (e.g. "a") will also receive messages published to paths that have it as a prefix (e.g. "a.b" or "a.c.d")
@@ -37,21 +39,23 @@ A subscriber to a path (e.g. "a") will also receive messages published to paths 
 ```javascript
 var fastps = require("fastps");
 
-fastps.subscribe({
-  "a": msg => {
+var ps = new fastps.PubSub();
+
+ps.subscribe({
+  a: msg => {
     console.log("received in parent path:", msg);
   }
 });
 
-fastps.publish({ to: "a.b", dat: 123 });
-fastps.publish({ to: "a.c.d", dat: 456 });
+ps.publish({ to: "a.b", dat: 123 });
+ps.publish({ to: "a.c.d", dat: 456 });
 ```
 
 ### Subscriber object
 
 Calls to `subscribe` return a subscriber object on which you can call the following methods:
 
-- `subscribe(cfg)`: add subscription to subscriber (receives same param as `fastps.subscribe`).
+- `subscribe(cfg)`: add subscription to subscriber (receives same param as `PubSub.subscribe`).
 - `unsubscribe(path1, path2...)`: Unsubscribes from those paths.
 - `unsubscribeAll()`: Removes all subscriptions from subscriber.
 
@@ -60,7 +64,9 @@ This code:
 ```javascript
 var fastps = require("fastps");
 
-var sub = fastps.subscribe({
+var ps = new fastps.PubSub();
+
+var sub = ps.subscribe({
   a: msg => {
     console.log("a: msg=", msg);
   },
@@ -77,9 +83,9 @@ sub.subscribe({
   }
 });
 
-fastps.publish({ to: "a", dat: 1 });
-fastps.publish({ to: "b", dat: 2 });
-fastps.publish({ to: "c", dat: 2 });
+ps.publish({ to: "a", dat: 1 });
+ps.publish({ to: "b", dat: 2 });
+ps.publish({ to: "c", dat: 2 });
 ```
 
 will print:
@@ -107,9 +113,11 @@ Messages with field `persist` == true will be delivered to subscribers that susb
 ```javascript
 var fastps = require("fastps");
 
-fastps.publish({ to: "a", dat: "Hi!", persist: true });
+var ps = new fastps.PubSub();
 
-fastps.subscribe({
+ps.publish({ to: "a", dat: "Hi!", persist: true });
+
+ps.subscribe({
   a: msg => {
     console.log("received:", msg);
   }
@@ -121,10 +129,12 @@ When several messages are published to a path with `persist` == true subscribers
 ```javascript
 var fastps = require("fastps");
 
-fastps.publish({ to: "a", dat: "Hi!", persist: true });
-fastps.publish({ to: "a", dat: "Hello there!", persist: true });
+var ps = new fastps.PubSub();
 
-fastps.subscribe({
+ps.publish({ to: "a", dat: "Hi!", persist: true });
+ps.publish({ to: "a", dat: "Hello there!", persist: true });
+
+ps.subscribe({
   a: msg => {
     console.log(msg.dat); // Will print "Hello there!"
   }
@@ -138,35 +148,39 @@ If you send a message with `noPropagate` == true it will not be received by subs
 ```javascript
 var fastps = require("fastps");
 
-fastps.subscribe({
+var ps = new fastps.PubSub();
+
+ps.subscribe({
   a: msg => {
     console.log("this line won't be executed");
   }
 });
 
-fastps.publish({ to: "a.b", dat: 123, noPropagate: true });
-fastps.publish({ to: "a.b.c", dat: 123, noPropagate: true });
+ps.publish({ to: "a.b", dat: 123, noPropagate: true });
+ps.publish({ to: "a.b.c", dat: 123, noPropagate: true });
 ```
 
 ### Answer
 
 You can put a path on the message field `res` so answers to it will be received on that path.
 
-To answer a message just call `msg.answer(data, error)`
+To answer a message just call `PubSub.answer(msg, data, error)`
 
 ```javascript
 var fastps = require("fastps");
 
-fastps.subscribe({
+var ps = new fastps.PubSub();
+
+ps.subscribe({
   a: msg => {
-    fastps.answer(msg, "Hello there!");
+    ps.answer(msg, "Hello there!");
   },
   b: msg => {
     console.log("received answer:", msg.dat);
   }
 });
 
-fastps.publish({ to: "a", dat: "Hi!", res: "b" });
+ps.publish({ to: "a", dat: "Hi!", res: "b" });
 ```
 
 You can also send an error when answering a message.
@@ -174,14 +188,16 @@ You can also send an error when answering a message.
 ```javascript
 var fastps = require("fastps");
 
-fastps.subscribe({
+var ps = new fastps.PubSub();
+
+ps.subscribe({
   a: msg => {
-    fastps.answer(msg, null, "Oops, something failed :(");
+    ps.answer(msg, null, "Oops, something failed :(");
   },
   b: msg => {
     console.log("received error:", msg.err);
   }
 });
 
-fastps.publish({ to: "a", dat: "Hi!", res: "b" });
+ps.publish({ to: "a", dat: "Hi!", res: "b" });
 ```
