@@ -1,5 +1,3 @@
-// @flow
-
 const fastps = require("../src/index.js");
 
 test("subscribe to path", () => {

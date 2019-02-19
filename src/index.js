@@ -1,28 +1,35 @@
-// @flow
+/**
+ * @typedef {Object} Msg
+ * @property {string} to - destination path
+ * @property {any} dat - data
+ * @property {string} res - reply path
+ * @property {boolean} noPropagate - subscribers to parent paths won't get this msg
+ * @property {boolean} persist - later subscribers will get this msg
+ * @property {any} err - error of this message
+ */
 
-/* :: type Cfg = { [string]: (msg: Msg) => void };  */
+/**
+ * @callback Handler
+ * @param {Msg} msg
+ */
 
-/* :: type Msg = { 
-  to: string,
-  dat: any,
-  res?: string, 
-  noPropagate?: boolean,
-  persist?: boolean,
-  err?: any,
- };  */
+/**
+ * @typedef {Object.<string, Handler>} Cfg
+ */
 
 /**
  * Subscriber that listens for messages on some paths
  */
 class Subscriber {
-  /* :: cfg: Cfg; */
-
+  /** Create a Susbcriber
+   * @param {PubSub} - PubSub object
+   */
   constructor(pubsub) {
     this.ps = pubsub;
     this.cfg = {};
   }
 
-  _process(path /* : string */, msg /* : Msg */) {
+  _process(path, msg) {
     if (path in this.cfg) {
       this.cfg[path](msg);
     }
@@ -30,16 +37,18 @@ class Subscriber {
 
   /**
    * Subscribe to aditional paths
+   * @param {Cfg} cfg
    */
-  subscribe(cfg /* : Cfg */) {
+  subscribe(cfg) {
     Object.assign(this.cfg, cfg);
     this.ps._subscribe(cfg, this);
   }
 
   /**
-   * Unsubscribe from path
+   * Unsubscribe from paths
+   * @param  {...string} paths
    */
-  unsubscribe(...paths /* : Array<string> */) {
+  unsubscribe(...paths) {
     paths.forEach(path => {
       if (path in this.cfg) {
         delete this.cfg[path];
@@ -49,7 +58,7 @@ class Subscriber {
   }
 
   /**
-   * Unsubscribe from all paths on this subscriber
+   * Unsubscribe from all paths
    */
   unsubscribeAll() {
     // TODO: variadic expand
@@ -60,17 +69,21 @@ class Subscriber {
 
   /**
    * Get list of paths subscribed to
+   * @returns {Array} list of paths
    */
-  subscriptions() /* : Array<string> */ {
+  subscriptions() {
     return Object.keys(this.cfg);
   }
 }
 
+/**
+ * Pub/sub class for crearintg subscribers
+ */
 class PubSub {
   constructor() {
-    this.subs /* :  { [string]: Set<Subscriber> } */ = {};
-    this.oldMsgs /* :  { [string]: Msg } */ = {};
-    this.respCnt /* : number */ = 0;
+    this.subs = {};
+    this.oldMsgs = {};
+    this.respCnt = 0;
   }
 
   /**
@@ -83,8 +96,10 @@ class PubSub {
 
   /**
    * Susbcribe to paths
+   * @param {Cfg} cfg - Subscription config
+   * @returns {Subscriber} - Subscriber created
    */
-  subscribe(cfg /* : Cfg */) {
+  subscribe(cfg) {
     const sub = new Subscriber(this);
     sub.subscribe(cfg);
     return sub;
@@ -113,9 +128,9 @@ class PubSub {
 
   /**
    * Publish message
+   * @param {Msg} msg - publish message
    */
-  publish(msg /* : Msg */) {
-    // console.log("publish msg: ", msg, "subs:", subs);
+  publish(msg) {
     if (msg.noPropagate) {
       if (msg.to in this.subs) {
         this.subs[msg.to].forEach(sub => {
@@ -147,24 +162,35 @@ class PubSub {
 
   /**
    * Answer to message
+   * @param {Msg} msg - message to answer to
+   * @param {any} dat - data for the answer
+   * @param {any} err - error for the answer
    */
-  answer(msg /* : Msg */, dat /* : any */, err /* : any */) {
+  answer(msg, dat, err) {
     if (msg.res) {
       this.publish({ to: msg.res, dat, err });
     }
   }
 
   /**
-   * Send message to path and return promise with response
+   * @typedef {Object.<string, any>} MsgOpts
    */
-  call(to /* : string */, dat /* : any */, msgOpts /* : ?{[string]: any} */) {
-    const promise /* :Promise<any> */ = new Promise((resolve, reject) => {
+
+  /**
+   * Send message to path and return promise with response
+   * @param {string} to - path to send msg to
+   * @param {any} dat - data to send
+   * @param {MsgOpts} msgOpts
+   * @returns {Promise} - returns promise with response
+   */
+  call(to, dat, msgOpts) {
+    return new Promise((resolve, reject) => {
       this.respCnt += 1;
       const res = `res-${this.respCnt}`;
 
       let sub;
       const cfg = {};
-      cfg[res] = (msg /* : Msg */) => {
+      cfg[res] = msg => {
         if (msg.err) {
           reject(msg.err);
         } else {
@@ -182,8 +208,6 @@ class PubSub {
         ...msgOpts
       });
     });
-
-    return promise;
   }
 }
 
