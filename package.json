@@ -13,7 +13,8 @@
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
     "flow": "flow",
-    "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && ./node_modules/.bin/jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && npm run build"
+    "generatedts": "./node_modules/.bin/jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
+    "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
   },
   "files": [
     "dist"
