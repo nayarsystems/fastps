@@ -2,10 +2,10 @@
  * @typedef {Object} Msg
  * @property {string} to - destination path
  * @property {any} dat - data
- * @property {string} res - reply path
- * @property {boolean} noPropagate - subscribers to parent paths won't get this msg
- * @property {boolean} persist - later subscribers will get this msg
- * @property {any} err - error of this message
+ * @property {string} [res] - reply path
+ * @property {boolean} [noPropagate] - subscribers to parent paths won't get this msg
+ * @property {boolean} [persist] - later subscribers will get this msg
+ * @property {any} [err] - error of this message
  */
 
 /**
@@ -69,7 +69,7 @@ class Subscriber {
 
   /**
    * Get list of paths subscribed to
-   * @returns {Array} list of paths
+   * @returns {string[]} list of paths
    */
   subscriptions() {
     return Object.keys(this.cfg);
