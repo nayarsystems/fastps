@@ -29,7 +29,7 @@
     "eslint-plugin-jest": "^21.27.2",
     "eslint-plugin-prettier": "^3.0.1",
     "flow-bin": "^0.82.0",
-    "jest": "^23.6.0",
+    "jest": "^24.1.0",
     "jsdoc": "^3.5.5",
     "merge": ">=1.2.1",
     "prettier": "^1.16.4",
@@ -42,7 +42,7 @@
   "jest": {
     "collectCoverage": true,
     "collectCoverageFrom": [
-      "**/*.{js}",
+      "**/*.js",
       "!**/node_modules/**",
       "!**/dist/**",
       "!**/coverage/**",
