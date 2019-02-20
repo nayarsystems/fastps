@@ -12,8 +12,8 @@
     "build": "parcel build src/index.js",
     "dev": "parcel src/index.js",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
-    "generatedts": "./node_modules/.bin/jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
-    "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
+    "generatedts": "jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
+    "prepublishOnly": "eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
   },
   "files": [
     "dist"
