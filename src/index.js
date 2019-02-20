@@ -29,6 +29,9 @@ class Subscriber {
     this.cfg = {};
   }
 
+  /**
+   * @private
+   */
   _process(path, msg) {
     if (path in this.cfg) {
       this.cfg[path](msg);
@@ -102,6 +105,9 @@ class PubSub {
     return sub;
   }
 
+  /**
+   * @private
+   */
   _subscribe(cfg, subscriber) {
     Object.keys(cfg).forEach(path => {
       if (!(path in this.subs)) {
@@ -117,6 +123,9 @@ class PubSub {
     });
   }
 
+  /**
+   * @private
+   */
   _unsubscribe(path, subscriber) {
     if (path in this.subs) {
       this.subs[path].delete(subscriber);
