@@ -61,10 +61,7 @@ class Subscriber {
    * Unsubscribe from all paths
    */
   unsubscribeAll() {
-    // TODO: variadic expand
-    Object.keys(this.cfg).forEach(path => {
-      this.unsubscribe(path);
-    });
+    this.unsubscribe(...Object.keys(this.cfg));
   }
 
   /**
