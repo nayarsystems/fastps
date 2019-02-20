@@ -12,7 +12,6 @@
     "build": "webpack --mode production",
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
-    "flow": "flow",
     "generatedts": "./node_modules/.bin/jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
     "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
   },
@@ -28,7 +27,6 @@
     "eslint-plugin-import": "^2.16.0",
     "eslint-plugin-jest": "^21.27.2",
     "eslint-plugin-prettier": "^3.0.1",
-    "flow-bin": "^0.82.0",
     "jest": "^24.1.0",
     "jsdoc": "^3.5.5",
     "merge": ">=1.2.1",
@@ -46,7 +44,6 @@
       "!**/node_modules/**",
       "!**/dist/**",
       "!**/coverage/**",
-      "!**/flow-typed/**",
       "!webpack.config.js",
       "!.eslintrc.js"
     ]
