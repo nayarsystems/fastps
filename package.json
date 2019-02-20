@@ -9,8 +9,8 @@
   "repository": "https://github.com/nayarsystems/fastps",
   "scripts": {
     "test": "jest",
-    "build": "webpack --mode production",
-    "dev": "webpack --mode development",
+    "build": "parcel build src/index.js",
+    "dev": "parcel src/index.js",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
     "generatedts": "./node_modules/.bin/jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
     "prepublishOnly": "./node_modules/.bin/eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
@@ -30,9 +30,8 @@
     "jest": "^24.1.0",
     "jsdoc": "^3.5.5",
     "merge": ">=1.2.1",
-    "prettier": "^1.16.4",
-    "webpack": "^4.29.5",
-    "webpack-cli": "^3.2.3"
+    "parcel-bundler": "^1.11.0",
+    "prettier": "^1.16.4"
   },
   "dependencies": {
     "tsd-jsdoc": "^2.1.3"
@@ -44,7 +43,6 @@
       "!**/node_modules/**",
       "!**/dist/**",
       "!**/coverage/**",
-      "!webpack.config.js",
       "!.eslintrc.js"
     ]
   }
