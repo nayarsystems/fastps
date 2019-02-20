@@ -97,7 +97,7 @@ class PubSub {
   /**
    * Susbcribe to paths
    * @param {Cfg} cfg - Subscription config
-   * @returns {Subscriber} - Subscriber created
+   * @returns {Subscriber} Subscriber created
    */
   subscribe(cfg) {
     const sub = new Subscriber(this);
@@ -181,7 +181,7 @@ class PubSub {
    * @param {string} to - path to send msg to
    * @param {any} dat - data to send
    * @param {MsgOpts} msgOpts
-   * @returns {Promise} - returns promise with response
+   * @returns {Promise} promise with response
    */
   call(to, dat, msgOpts) {
     return new Promise((resolve, reject) => {
