@@ -21,7 +21,7 @@
  * Subscriber that listens for messages on some paths
  */
 class Subscriber {
-  /** Create a Susbcriber
+  /** Create a Subscriber
    * @param {PubSub} - PubSub object
    */
   constructor(pubsub) {
@@ -95,7 +95,7 @@ class PubSub {
   }
 
   /**
-   * Susbcribe to paths
+   * Subscribe to paths
    * @param {Cfg} cfg - Subscription config
    * @returns {Subscriber} Subscriber created
    */
