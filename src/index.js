@@ -77,7 +77,7 @@ class Subscriber {
 }
 
 /**
- * Pub/sub class for crearintg subscribers
+ * Handles pub/sub
  */
 class PubSub {
   constructor() {
