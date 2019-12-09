@@ -28,7 +28,7 @@
     "eslint-plugin-jest": "^21.27.2",
     "eslint-plugin-prettier": "^3.1.0",
     "jest": "^24.8.0",
-    "jsdoc": "^3.6.2",
+    "jsdoc": "^3.6.3",
     "merge": ">=1.2.1",
     "prettier": "^1.18.2",
     "tsd-jsdoc": "^2.3.0",
