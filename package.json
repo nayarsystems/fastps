@@ -12,8 +12,8 @@
     "build": "webpack --mode production",
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
-    "generatedts": "jsdoc -t node_modules/tsd-jsdoc/dist -r src -d dist && sed -i 's/declare /export /' dist/types.d.ts",
-    "prepublishOnly": "eslint src/ && npm run test && rm -f dist/* && npm run generatedts && npm run build"
+    "generatedoc": "jsdoc -r src -d dist",
+    "prepublishOnly": "eslint src/ && npm run test && rm -r f dist/* && npm run generatedoc && npm run build"
   },
   "files": [
     "dist"
