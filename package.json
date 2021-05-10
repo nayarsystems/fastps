@@ -12,8 +12,7 @@
     "build": "webpack --mode production",
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
-    "generatedoc": "jsdoc -r src -d dist",
-    "prepublishOnly": "eslint src/ && npm run test && rm -rf dist/* && npm run generatedoc && npm run build"
+    "prepublishOnly": "eslint src/ && npm run test && rm -rf dist/* && npm run build"
   },
   "files": [
     "dist"
@@ -28,7 +27,6 @@
     "eslint-plugin-jest": "^21.27.2",
     "eslint-plugin-prettier": "^3.1.0",
     "jest": "^24.8.0",
-    "jsdoc": "github:jsdoc/jsdoc",
     "merge": ">=1.2.1",
     "prettier": "^1.18.2",
     "webpack": "^4.33.0",
