@@ -13,7 +13,7 @@
     "dev": "webpack --mode development",
     "eslint-check": "eslint --print-config .eslintrc.json | eslint-config-prettier-check",
     "generatedoc": "jsdoc -r src -d dist",
-    "prepublishOnly": "eslint src/ && npm run test && rm -r f dist/* && npm run generatedoc && npm run build"
+    "prepublishOnly": "eslint src/ && npm run test && rm -rf dist/* && npm run generatedoc && npm run build"
   },
   "files": [
     "dist"
