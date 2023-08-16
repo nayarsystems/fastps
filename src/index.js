@@ -1,3 +1,5 @@
+let defaultPubSub = null;
+
 /**
  * @typedef {Object} Msg
  * @property {string} to - destination path
@@ -217,4 +219,18 @@ class PubSub {
   }
 }
 
+/**
+ * 
+ * @returns {PubSub} default app pubsub instance
+ */
+function getDefaultPubSub() {
+  if (!defaultPubSub) {
+    defaultPubSub = new PubSub();
+  }
+
+  return defaultPubSub;
+}
+
 exports.PubSub = PubSub;
+exports.Subscriber = Subscriber;
+exports.getDefaultPubSub = getDefaultPubSub;

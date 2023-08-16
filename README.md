@@ -1,19 +1,13 @@
 # fastps
 
-[![Build Status](https://travis-ci.org/nayarsystems/fastps.svg?branch=master)](https://travis-ci.org/nayarsystems/fastps) [![Coverage Status](https://coveralls.io/repos/github/nayarsystems/fastps/badge.svg?branch=master&service=github)](https://coveralls.io/github/nayarsystems/fastps?branch=master)
+ [![Coverage Status](https://coveralls.io/repos/github/nayarsystems/fastps/badge.svg?branch=master&service=github)](https://coveralls.io/github/nayarsystems/fastps?branch=master)
 
 Simple pub/sub
 
 ## Install
 
 ```
-npm install fastps
-```
-
-or
-
-```
-yarn add fastps
+npm install @nayar/fastps
 ```
 
 ## Usage
@@ -21,9 +15,9 @@ yarn add fastps
 You can subscribe to a path (with dots as separators) and will receive messages published to that path.
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.subscribe({
   "a.b": msg => {
@@ -37,9 +31,9 @@ ps.publish({ to: "a.b", dat: 123 });
 A subscriber to a path (e.g. "a") will also receive messages published to paths that have it as a prefix (e.g. "a.b" or "a.c.d")
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.subscribe({
   a: msg => {
@@ -62,11 +56,11 @@ Calls to `subscribe` return a subscriber object on which you can call the follow
 This code:
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
-var sub = ps.subscribe({
+const sub = ps.subscribe({
   a: msg => {
     console.log("a: msg=", msg);
   },
@@ -104,16 +98,16 @@ A message can contain the following fields:
 - `persist` (optional): message will be stored when published and later subscribers to its path will receive it.
 - `noPropagate` (required): subscribers to ancestor paths will not receive this message.
 - `res` (optional): path where you will receive the answer for this message.
-- `err` (option): field with error that is sent using answer.
+- `err` (optional): field with error that is sent using answer.
 
 ### Persist
 
 Messages with field `persist` == true will be delivered to subscribers that susbcribe after it has been published.
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.publish({ to: "a", dat: "Hi!", persist: true });
 
@@ -127,9 +121,9 @@ ps.subscribe({
 When several messages are published to a path with `persist` == true subscribers will receive the most recent one when subscribing.
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.publish({ to: "a", dat: "Hi!", persist: true });
 ps.publish({ to: "a", dat: "Hello there!", persist: true });
@@ -146,9 +140,9 @@ ps.subscribe({
 If you send a message with `noPropagate` == true it will not be received by subscribers of parent paths
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.subscribe({
   a: msg => {
@@ -167,9 +161,9 @@ You can put a path on the message field `res` so answers to it will be received 
 To answer a message just call `PubSub.answer(msg, data, error)`
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.subscribe({
   a: msg => {
@@ -186,9 +180,9 @@ ps.publish({ to: "a", dat: "Hi!", res: "b" });
 You can also send an error when answering a message.
 
 ```javascript
-var fastps = require("fastps");
+const fastps = require("@nayar/fastps");
 
-var ps = new fastps.PubSub();
+const ps = new fastps.PubSub();
 
 ps.subscribe({
   a: msg => {

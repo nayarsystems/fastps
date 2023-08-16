@@ -445,3 +445,19 @@ test("call throws exception when on error", async () => {
     expect(e).toEqual(new Error("this is an error"));
   }
 });
+
+test("use default pubsub instance", () => {
+  const ps1 =  require("../src/index.js").getDefaultPubSub();
+  const ps2 =  require("../src/index.js").getDefaultPubSub();
+  const received = [];
+
+  ps1.subscribe({
+    a: msg => {
+      received.push(msg);
+    }
+  });
+
+  ps2.publish({ to: "a", dat: 123 });
+
+  expect(received).toStrictEqual([{ to: "a", dat: 123 }]);
+});
