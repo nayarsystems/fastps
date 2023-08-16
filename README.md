@@ -195,3 +195,17 @@ ps.subscribe({
 
 ps.publish({ to: "a", dat: "Hi!", res: "b" });
 ```
+You can wait for answer using call method
+
+```javascript
+const ps = new fastps.PubSub();
+
+  ps.subscribe({
+    add1: msg => {
+      ps.answer(msg, msg.dat + 1);
+    }
+  });
+
+  const resp = await ps.call("add1", 1);
+  // resp = 2
+  ```

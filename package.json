@@ -1,6 +1,6 @@
 {
   "name": "@nayar/fastps",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Simple pub/sub",
   "contributors": [
     "Angel Jimenez <ajimenez@nayarsystems.com>",
@@ -14,7 +14,15 @@
   "devDependencies": {
     "jest": "^29.6.2"
   },
-  "jest": {
+  "keywords": [
+    "pubsub",
+    "PublishSubscribe",
+    "pubsubjs",
+    "pubsub-js",
+    "bus",
+    "events"
+  ],
+    "jest": {
     "collectCoverage": true,
     "collectCoverageFrom": [
       "**/*.js",
