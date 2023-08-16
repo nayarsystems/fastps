@@ -131,6 +131,9 @@ class PubSub {
   _unsubscribe(path, subscriber) {
     if (path in this.subs) {
       this.subs[path].delete(subscriber);
+      if (this.subs[path].size === 0) {
+        delete this.subs[path];
+      }
     }
   }
 
