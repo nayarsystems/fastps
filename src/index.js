@@ -108,6 +108,18 @@ class PubSub {
   }
 
   /**
+   * Get internal subscriptions
+   * @param {string} path - path to get number of subscriptions
+   * @returns {number} number of subscriptions to path
+   */
+  numSubscribers(path) {
+    if (!(path in this.subs)) {
+      return 0;
+    }
+    return this.subs[path].size
+  }
+
+  /**
    * @private
    */
   _subscribe(cfg, subscriber) {
@@ -140,16 +152,21 @@ class PubSub {
   /**
    * Publish message
    * @param {Msg} msg - publish message
+   * return {number} number of subscribers that got the message
    */
   publish(msg) {
+    let count = 0;
+
     if (msg.noPropagate) {
       if (msg.to in this.subs) {
         this.subs[msg.to].forEach(sub => {
           sub._process(msg.to, msg);
+          count++;
         });
       }
     } else {
       let path = "";
+      let dups = new Set();
       const subPaths = msg.to.split(".");
       subPaths.forEach(subPath => {
         if (path === "") {
@@ -160,7 +177,11 @@ class PubSub {
 
         if (path in this.subs) {
           this.subs[path].forEach(sub => {
-            sub._process(path, msg);
+            if (!dups.has(sub)) {
+              sub._process(path, msg);
+              count++;
+              dups.add(sub);
+            }
           });
         }
       });
@@ -169,6 +190,7 @@ class PubSub {
     if (msg.persist) {
       this.oldMsgs[msg.to] = { ...msg, old: true };
     }
+    return count;
   }
 
   /**

@@ -219,22 +219,21 @@ test("get subscriptions of subscriber", () => {
   expect(sub.subscriptions()).toStrictEqual(["a", "b"]);
 });
 
-test("when subscribing to parent receive children messages", () => {
+test("when subscribing to parent receive children messages", async () => {
   const ps = new fastps.PubSub();
   const received = [];
-
+  
   ps.subscribe({
-    a: msg => {
+    "sota": msg => {
       received.push(msg);
-    }
+      }
   });
 
-  ps.publish({ to: "a.b", dat: 1 });
-
-  expect(received).toStrictEqual([{ to: "a.b", dat: 1 }]);
+  ps.publish({ to: "sota.caballo", dat: 1 });
+  expect(received).toStrictEqual([{ to: "sota.caballo", dat: 1 }]);
 });
 
-test("when subscribing to parent children receives message", () => {
+test("when subscribing to parent and children, only parent receives message", () => {
   const ps = new fastps.PubSub();
   const receivedA = [];
   const receivedAB = [];
@@ -251,7 +250,7 @@ test("when subscribing to parent children receives message", () => {
   ps.publish({ to: "a.b", dat: 1 });
 
   expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1 }]);
-  expect(receivedAB).toStrictEqual([{ to: "a.b", dat: 1 }]);
+  expect(receivedAB).toStrictEqual([]);
 });
 
 test("when using noPropagate parent subscribers don't receive children message", () => {
@@ -446,7 +445,39 @@ test("call throws exception when on error", async () => {
   }
 });
 
+test("publish returns number of subscribers that got the message", async () => {
+  const ps = new fastps.PubSub();
+
+  let sub1 = ps.subscribe({a: () => {}});
+  let sub2 = ps.subscribe({a: () => {}});
+
+  let cnt = ps.publish({to: "a", dat: 1});
+  expect(cnt).toStrictEqual(2);
+  sub1.unsubscribeAll();
+  cnt = ps.publish({to: "a", dat: 1});
+  expect(cnt).toStrictEqual(1);
+  sub2.unsubscribeAll();
+  cnt = ps.publish({to: "a", dat: 1});
+  expect(cnt).toStrictEqual(0);
+});
+
+test("check number of subscribers", async () => {
+  const ps = new fastps.PubSub();
+  
+  expect(ps.numSubscribers("a")).toStrictEqual(0);
+  let sub1 = ps.subscribe({a: () => {}});
+  let sub2 = ps.subscribe({a: () => {}});
+  expect(ps.numSubscribers("a")).toStrictEqual(2);
+  sub1.unsubscribeAll();
+  expect(ps.numSubscribers("a")).toStrictEqual(1);
+  sub2.unsubscribeAll();
+  expect(ps.numSubscribers("a")).toStrictEqual(0);
+});
+
+
 test("use default pubsub instance", () => {
+
+
   const ps1 =  require("../src/index.js").getDefaultPubSub();
   const ps2 =  require("../src/index.js").getDefaultPubSub();
   const received = [];
