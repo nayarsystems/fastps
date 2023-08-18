@@ -66,29 +66,6 @@ test("publish message to unsubscribed path with noPropagate", () => {
   expect(received).toStrictEqual([]);
 });
 
-test("unsubscribe from all paths", () => {
-  const ps = new fastps.PubSub();
-  const receivedA = [];
-  const receivedB = [];
-
-  ps.subscribe({
-    a: msg => {
-      receivedA.push(msg);
-    },
-    b: msg => {
-      receivedB.push(msg);
-    }
-  });
-
-  ps.unsubscribeAll();
-
-  ps.publish({ to: "a", dat: 1 });
-  ps.publish({ to: "b", dat: 2 });
-
-  expect(receivedA).toStrictEqual([]);
-  expect(receivedB).toStrictEqual([]);
-});
-
 test("unsubscribe from all paths on subscriber", () => {
   const ps = new fastps.PubSub();
   const receivedA = [];
@@ -212,8 +189,8 @@ test("add existing path to subscriber", () => {
 test("get subscriptions of subscriber", () => {
   const ps = new fastps.PubSub();
   const sub = ps.subscribe({
-    a: () => {},
-    b: () => {}
+    a: () => { },
+    b: () => { }
   });
 
   expect(sub.subscriptions()).toStrictEqual(["a", "b"]);
@@ -222,15 +199,15 @@ test("get subscriptions of subscriber", () => {
 test("when subscribing to parent receive children messages", async () => {
   const ps = new fastps.PubSub();
   const received = [];
-  
+
   ps.subscribe({
-    "sota": msg => {
+    a: msg => {
       received.push(msg);
-      }
+    }
   });
 
-  ps.publish({ to: "sota.caballo", dat: 1 });
-  expect(received).toStrictEqual([{ to: "sota.caballo", dat: 1 }]);
+  ps.publish({ to: "a.b", dat: 1 });
+  expect(received).toStrictEqual([{ to: "a.b", dat: 1 }]);
 });
 
 test("when subscribing to parent and children, only parent receives message", () => {
@@ -445,28 +422,55 @@ test("call throws exception when on error", async () => {
   }
 });
 
+test("call throws exception when no subscribers", async () => {
+  const ps = new fastps.PubSub();
+
+  try {
+    await ps.call("add1", 1);
+    throw new Error("should have thrown exception");
+  } catch (e) {
+    expect(e).toEqual(new Error("No subscribers"));
+  }
+});
+
+test("call throws exception when timeout", async () => {
+  const ps = new fastps.PubSub();
+  ps.subscribe({
+    add1: msg => {
+      //ps.answer(msg, msg.dat + 1);
+    }
+  });
+
+  try {
+    await ps.call("add1", 1, { timeOut: 5 });
+    throw new Error("should have thrown exception");
+  } catch (e) {
+    expect(e).toEqual(new Error("Time out"));
+  }
+});
+
 test("publish returns number of subscribers that got the message", async () => {
   const ps = new fastps.PubSub();
 
-  let sub1 = ps.subscribe({a: () => {}});
-  let sub2 = ps.subscribe({a: () => {}});
+  let sub1 = ps.subscribe({ a: () => { } });
+  let sub2 = ps.subscribe({ a: () => { } });
 
-  let cnt = ps.publish({to: "a", dat: 1});
+  let cnt = ps.publish({ to: "a", dat: 1 });
   expect(cnt).toStrictEqual(2);
   sub1.unsubscribeAll();
-  cnt = ps.publish({to: "a", dat: 1});
+  cnt = ps.publish({ to: "a", dat: 1 });
   expect(cnt).toStrictEqual(1);
   sub2.unsubscribeAll();
-  cnt = ps.publish({to: "a", dat: 1});
+  cnt = ps.publish({ to: "a", dat: 1 });
   expect(cnt).toStrictEqual(0);
 });
 
 test("check number of subscribers", async () => {
   const ps = new fastps.PubSub();
-  
+
   expect(ps.numSubscribers("a")).toStrictEqual(0);
-  let sub1 = ps.subscribe({a: () => {}});
-  let sub2 = ps.subscribe({a: () => {}});
+  let sub1 = ps.subscribe({ a: () => { } });
+  let sub2 = ps.subscribe({ a: () => { } });
   expect(ps.numSubscribers("a")).toStrictEqual(2);
   sub1.unsubscribeAll();
   expect(ps.numSubscribers("a")).toStrictEqual(1);
@@ -474,12 +478,49 @@ test("check number of subscribers", async () => {
   expect(ps.numSubscribers("a")).toStrictEqual(0);
 });
 
+test("get list of all paths subscribed to", async () => {
+  const ps = new fastps.PubSub();
+
+  ps.subscribe({ 'a': () => { } });
+  ps.subscribe({ 'a.b': () => { } });
+  ps.subscribe({ 'a.b': () => { } });
+  ps.subscribe({ 'a.b.c': () => { } });
+  ps.subscribe({ 'j': () => { } });
+
+  expect(ps.getAllPaths()).toStrictEqual(['a', 'a.b', 'a.b.c', 'j']);
+});
+
+test("check $listenOn internal messages", async () => {
+  const ps = new fastps.PubSub();
+  const received = [];
+
+  ps.subscribe({
+    '$listenOn':
+      (msg) => {
+        received.push(msg);
+      }
+  });
+
+  const sub1 = ps.subscribe({ 'a': () => { } });
+  const sub2 = ps.subscribe({ 'a.b': () => { } });
+  const sub3 = ps.subscribe({ 'a.b': () => { } });
+  const sub4 = ps.subscribe({ 'a.b.c': () => { } });
+  const sub5 = ps.subscribe({ 'j': () => { } });
+  sub3.unsubscribeAll();
+  sub1.unsubscribeAll();
+
+  expect(received).toStrictEqual([
+    { to: '$listenOn.a', dat: true },
+    { to: '$listenOn.a.b', dat: true },
+    { to: '$listenOn.a.b.c', dat: true },
+    { to: '$listenOn.j', dat: true },
+    { to: '$listenOn.a', dat: false }]);
+});
+
 
 test("use default pubsub instance", () => {
-
-
-  const ps1 =  require("../src/index.js").getDefaultPubSub();
-  const ps2 =  require("../src/index.js").getDefaultPubSub();
+  const ps1 = require("../src/index.js").getDefaultPubSub();
+  const ps2 = require("../src/index.js").getDefaultPubSub();
   const received = [];
 
   ps1.subscribe({

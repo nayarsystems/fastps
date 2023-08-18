@@ -1,6 +1,6 @@
 {
   "name": "@nayar/fastps",
-  "version": "2.2.5",
+  "version": "3.0.0",
   "description": "Simple pub/sub",
   "contributors": [
     "Angel Jimenez <ajimenez@nayarsystems.com>",

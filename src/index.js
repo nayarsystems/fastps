@@ -8,6 +8,8 @@ let defaultPubSub = null;
  * @property {boolean} [noPropagate] - subscribers to parent paths won't get this msg
  * @property {boolean} [persist] - later subscribers will get this msg
  * @property {any} [err] - error of this message
+ * @property {boolean} [old] - this is an old message
+ * @property {number} [timeOut] - time out for call
  */
 
 /**
@@ -89,14 +91,6 @@ class PubSub {
   }
 
   /**
-   * Remove all subscribed paths
-   */
-  unsubscribeAll() {
-    this.subs = {};
-    this.oldMsgs = {};
-  }
-
-  /**
    * Subscribe to paths
    * @param {Cfg} cfg - Subscription config
    * @returns {Subscriber} Subscriber created
@@ -108,7 +102,7 @@ class PubSub {
   }
 
   /**
-   * Get internal subscriptions
+   * Get number of subscriptions for parh
    * @param {string} path - path to get number of subscriptions
    * @returns {number} number of subscriptions to path
    */
@@ -119,16 +113,29 @@ class PubSub {
     return this.subs[path].size
   }
 
+  /** Get list of all paths subscribed to
+   * @returns {string[]} list of paths
+   */
+  getAllPaths() {
+    return Object.keys(this.subs);
+  }
+
   /**
    * @private
    */
   _subscribe(cfg, subscriber) {
+    let openPath = false;
     Object.keys(cfg).forEach(path => {
       if (!(path in this.subs)) {
         this.subs[path] = new Set();
+        openPath = true;
       }
 
       this.subs[path].add(subscriber);
+
+      if (openPath && !path.startsWith("$")) {
+        this.publish({ to: `$listenOn.${path}`, dat: true });
+      }
 
       if (path in this.oldMsgs) {
         const oldMsg = this.oldMsgs[path];
@@ -145,6 +152,9 @@ class PubSub {
       this.subs[path].delete(subscriber);
       if (this.subs[path].size === 0) {
         delete this.subs[path];
+        if (!path.startsWith("$")) {
+          this.publish({ to: `$listenOn.${path}`, dat: false });
+        }
       }
     }
   }
@@ -216,12 +226,23 @@ class PubSub {
    * @param {MsgOpts} msgOpts
    * @returns {Promise} promise with response
    */
-  call(to, dat, msgOpts) {
+  call(to, dat, msgOpts = {}) {
     return new Promise((resolve, reject) => {
       this.respCnt += 1;
       const res = `res-${this.respCnt}`;
 
+      let timeOutId = null;
       let sub;
+
+      let timeOut = msgOpts.timeOut || 5000;
+
+      if (timeOut > 0) {
+        timeOutId = setTimeout(() => {
+          reject(new Error('Time out'));
+          sub.unsubscribeAll();
+        }, timeOut);
+      }
+
       const cfg = {};
       cfg[res] = msg => {
         if (msg.err) {
@@ -230,16 +251,25 @@ class PubSub {
           resolve(msg.dat);
         }
         sub.unsubscribeAll();
+        if (timeOutId) {
+          clearTimeout(timeOutId);
+        }
       };
-
       sub = this.subscribe(cfg);
 
-      this.publish({
+      const cnt = this.publish({
         to,
         dat,
         res,
         ...msgOpts
       });
+      if (cnt === 0) {
+        reject(new Error('No subscribers'));
+        sub.unsubscribeAll();
+        if (timeOutId) {
+          clearTimeout(timeOutId);
+        }
+      }
     });
   }
 }
