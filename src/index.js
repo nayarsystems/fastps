@@ -28,17 +28,30 @@ class Subscriber {
   /** Create a Subscriber
    * @param {PubSub} - PubSub object
    */
-  constructor(pubsub) {
-    this.ps = pubsub;
-    this.cfg = {};
+  constructor(pubsub, opts = {}) {
+    this._ps = pubsub;
+    this._cfg = {};
+    this.hidden = opts.hidden || false;
   }
+
+  /**
+   * Get hidden
+   * @returns {boolean} hidden status. If true, this subscriber will not count for the number of subscribers to a path
+   */
+  get hidden() { return this._hidden; }
+
+  /**
+   * Set hidden
+   * @param {boolean} val - hidden status. If true, this subscriber will not count for the number of subscribers to a path
+   */
+  set hidden(val) { this._hidden = val; }
 
   /**
    * @private
    */
   _process(path, msg) {
-    if (path in this.cfg) {
-      this.cfg[path](msg);
+    if (path in this._cfg) {
+      this._cfg[path](msg);
     }
   }
 
@@ -47,8 +60,8 @@ class Subscriber {
    * @param {Cfg} cfg
    */
   subscribe(cfg) {
-    Object.assign(this.cfg, cfg);
-    this.ps._subscribe(cfg, this);
+    Object.assign(this._cfg, cfg);
+    this._ps._subscribe(cfg, this);
   }
 
   /**
@@ -57,9 +70,9 @@ class Subscriber {
    */
   unsubscribe(...paths) {
     paths.forEach(path => {
-      if (path in this.cfg) {
-        delete this.cfg[path];
-        this.ps._unsubscribe(path, this);
+      if (path in this._cfg) {
+        delete this._cfg[path];
+        this._ps._unsubscribe(path, this);
       }
     });
   }
@@ -68,7 +81,7 @@ class Subscriber {
    * Unsubscribe from all paths
    */
   unsubscribeAll() {
-    this.unsubscribe(...Object.keys(this.cfg));
+    this.unsubscribe(...Object.keys(this._cfg));
   }
 
   /**
@@ -76,7 +89,7 @@ class Subscriber {
    * @returns {string[]} list of paths
    */
   subscriptions() {
-    return Object.keys(this.cfg);
+    return Object.keys(this._cfg);
   }
 }
 
@@ -85,9 +98,9 @@ class Subscriber {
  */
 class PubSub {
   constructor() {
-    this.subs = {};
-    this.oldMsgs = {};
-    this.respCnt = 0;
+    this._subs = {};
+    this._oldMsgs = {};
+    this._respCnt = 0;
   }
 
   /**
@@ -95,8 +108,8 @@ class PubSub {
    * @param {Cfg} cfg - Subscription config
    * @returns {Subscriber} Subscriber created
    */
-  subscribe(cfg) {
-    const sub = new Subscriber(this);
+  subscribe(cfg, opts = {}) {
+    const sub = new Subscriber(this, opts);
     sub.subscribe(cfg);
     return sub;
   }
@@ -107,38 +120,43 @@ class PubSub {
    * @returns {number} number of subscriptions to path
    */
   numSubscribers(path) {
-    if (!(path in this.subs)) {
+    if (!(path in this._subs)) {
       return 0;
     }
-    return this.subs[path].size
+    let cnt = 0;
+    this._subs[path].forEach(sub => {
+      if (!sub.hidden) {
+        cnt++;
+      }
+    });
+    return cnt;
   }
 
   /** Get list of all paths subscribed to
    * @returns {string[]} list of paths
    */
   getAllPaths() {
-    return Object.keys(this.subs);
+    return Object.keys(this._subs);
   }
 
   /**
    * @private
    */
   _subscribe(cfg, subscriber) {
-    let openPath = false;
     Object.keys(cfg).forEach(path => {
-      if (!(path in this.subs)) {
-        this.subs[path] = new Set();
-        openPath = true;
+      const lastNumSubs = this.numSubscribers(path);
+      if (!(path in this._subs)) {
+        this._subs[path] = new Set();
       }
 
-      this.subs[path].add(subscriber);
+      this._subs[path].add(subscriber);
 
-      if (openPath && !path.startsWith("$")) {
+      if (this.numSubscribers(path) === 1 && lastNumSubs === 0) {
         this.publish({ to: `$listenOn.${path}`, dat: true });
       }
 
-      if (path in this.oldMsgs) {
-        const oldMsg = this.oldMsgs[path];
+      if (path in this._oldMsgs) {
+        const oldMsg = this._oldMsgs[path];
         subscriber._process(path, oldMsg);
       }
     });
@@ -148,15 +166,17 @@ class PubSub {
    * @private
    */
   _unsubscribe(path, subscriber) {
-    if (path in this.subs) {
-      this.subs[path].delete(subscriber);
-      if (this.subs[path].size === 0) {
-        delete this.subs[path];
-        if (!path.startsWith("$")) {
-          this.publish({ to: `$listenOn.${path}`, dat: false });
-        }
+    const lastNumSubs = this.numSubscribers(path);
+    if (path in this._subs) {
+      this._subs[path].delete(subscriber);
+      if (this._subs[path].size === 0) {
+        delete this._subs[path];
       }
     }
+    if (this.numSubscribers(path) === 0 && lastNumSubs > 0) {
+      this.publish({ to: `$listenOn.${path}`, dat: false });
+    }
+
   }
 
   /**
@@ -168,10 +188,12 @@ class PubSub {
     let count = 0;
 
     if (msg.noPropagate) {
-      if (msg.to in this.subs) {
-        this.subs[msg.to].forEach(sub => {
+      if (msg.to in this._subs) {
+        this._subs[msg.to].forEach(sub => {
           sub._process(msg.to, msg);
-          count++;
+          if (!sub.hidden) {
+            count++;
+          }
         });
       }
     } else {
@@ -185,11 +207,13 @@ class PubSub {
           path = `${path}.${subPath}`;
         }
 
-        if (path in this.subs) {
-          this.subs[path].forEach(sub => {
+        if (path in this._subs) {
+          this._subs[path].forEach(sub => {
             if (!dups.has(sub)) {
               sub._process(path, msg);
-              count++;
+              if (!sub.hidden) {
+                count++;
+              }
               dups.add(sub);
             }
           });
@@ -198,7 +222,7 @@ class PubSub {
     }
 
     if (msg.persist) {
-      this.oldMsgs[msg.to] = { ...msg, old: true };
+      this._oldMsgs[msg.to] = { ...msg, old: true };
     }
     return count;
   }
@@ -228,8 +252,8 @@ class PubSub {
    */
   call(to, dat, msgOpts = {}) {
     return new Promise((resolve, reject) => {
-      this.respCnt += 1;
-      const res = `res-${this.respCnt}`;
+      this._respCnt += 1;
+      const res = `$res-${this._respCnt}`;
 
       let timeOutId = null;
       let sub;
@@ -255,7 +279,7 @@ class PubSub {
           clearTimeout(timeOutId);
         }
       };
-      sub = this.subscribe(cfg);
+      sub = this.subscribe(cfg, { hidden: true });
 
       const cnt = this.publish({
         to,

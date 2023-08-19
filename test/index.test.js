@@ -494,20 +494,22 @@ test("check $listenOn internal messages", async () => {
   const ps = new fastps.PubSub();
   const received = [];
 
-  ps.subscribe({
+  let sub = ps.subscribe({
     '$listenOn':
       (msg) => {
         received.push(msg);
       }
-  });
+  }, {hidden: true});
 
   const sub1 = ps.subscribe({ 'a': () => { } });
   const sub2 = ps.subscribe({ 'a.b': () => { } });
   const sub3 = ps.subscribe({ 'a.b': () => { } });
   const sub4 = ps.subscribe({ 'a.b.c': () => { } });
   const sub5 = ps.subscribe({ 'j': () => { } });
+  const sub6 = ps.subscribe({ 'z': () => { } }, {hidden: true}); // $listenOn.z should not be published since it is hidden
   sub3.unsubscribeAll();
   sub1.unsubscribeAll();
+  sub6.unsubscribe('z'); // $listenOn.z should not be published since it is hidden
 
   expect(received).toStrictEqual([
     { to: '$listenOn.a', dat: true },
@@ -517,6 +519,15 @@ test("check $listenOn internal messages", async () => {
     { to: '$listenOn.a', dat: false }]);
 });
 
+test("check hidden subscriptions", async () => {
+  const ps = new fastps.PubSub();
+  const sub = new fastps.Subscriber(ps, {hidden: true});
+  
+  sub.subscribe({ 'a': () => { } });
+  
+  expect(ps.numSubscribers('a')).toStrictEqual(0);
+  expect(ps.publish({ to: "a", dat: 1 })).toStrictEqual(0);
+});
 
 test("use default pubsub instance", () => {
   const ps1 = require("../src/index.js").getDefaultPubSub();
