@@ -171,7 +171,13 @@ class PubSub {
    * @returns {string[]} list of paths
    */
   getAllPaths() {
-    return Object.keys(this._subs);
+    let retPAths = [];
+    Object.keys(this._subs).forEach(path => {
+      if (this.numSubscribers(path) > 0) {
+        retPAths.push(path);
+      }
+    });
+    return retPAths;
   }
 
   /**
