@@ -89,6 +89,31 @@ test("unsubscribe from all paths on subscriber", () => {
   expect(receivedB).toStrictEqual([]);
 });
 
+test("kill subscriber", () => {
+  const ps = new fastps.PubSub();
+  const receivedA = [];
+  const receivedB = [];
+
+  const sub = ps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    },
+    b: msg => {
+      receivedB.push(msg);
+    }
+  });
+
+  sub.kill();
+  expect(sub.alive).toStrictEqual(false);
+
+  ps.publish({ to: "a", dat: 1 });
+  ps.publish({ to: "b", dat: 2 });
+  expect(receivedA).toStrictEqual([]);
+  expect(receivedB).toStrictEqual([]);
+  
+});
+
+
 test("unsubscribe from some paths", () => {
   const ps = new fastps.PubSub();
   const receivedA = [];

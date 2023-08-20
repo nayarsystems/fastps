@@ -29,6 +29,7 @@ class Subscriber {
    * @param {PubSub} - PubSub object
    */
   constructor(pubsub, opts = {}) {
+    this._alive = true;
     this._ps = pubsub;
     this._cfg = {};
     this.hidden = opts.hidden ?? false;
@@ -36,6 +37,26 @@ class Subscriber {
     this.recursiveOld = opts.recursiveOld ?? false;
   }
 
+  
+  /**
+   * Kill subscriber, unsubscribe from all paths and release resources
+   */
+  kill() {
+    if (this.alive) {
+      this._alive = false;
+      this.unsubscribeAll();
+      this._ps = null;
+      this._cfg = null;
+    }
+  }
+
+  /**
+   * Get alive
+   * @returns {boolean} alive status
+   */
+  get alive() {
+    return this._alive;
+  }
 
   /**
    * Get recursiveOld
@@ -85,7 +106,7 @@ class Subscriber {
    * @private
    */
   _process(path, msg) {
-    if (path in this._cfg) {
+    if (this._alive && path in this._cfg) {
       if (msg.old && !this.fetchOld) {
         return;
       }
@@ -98,6 +119,9 @@ class Subscriber {
    * @param {Cfg} cfg
    */
   subscribe(cfg) {
+    if (!this._alive) {
+      return;
+    }
     Object.assign(this._cfg, cfg);
     this._ps._subscribe(cfg, this);
   }
