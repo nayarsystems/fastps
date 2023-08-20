@@ -31,7 +31,42 @@ class Subscriber {
   constructor(pubsub, opts = {}) {
     this._ps = pubsub;
     this._cfg = {};
-    this.hidden = opts.hidden || false;
+    this.hidden = opts.hidden ?? false;
+    this.fetchOld = opts.fetchOld ?? true;
+    this.recursiveOld = opts.recursiveOld ?? false;
+  }
+
+
+  /**
+   * Get recursiveOld
+   * @returns {boolean} recursiveOld status. If true, this subscriber will also receive old persisted messages in subpaths
+   */
+  get recursiveOld() {
+    return this._recursiveOld;
+  }
+
+  /**
+   * Set recursiveOld
+   * @param {boolean} val - recursiveOld status. If true, this subscriber will also receive old persisted messages in subpaths
+   */
+  set recursiveOld(val) {
+    this._recursiveOld = val;
+  }
+
+  /**
+   * Get fetchOld
+   * @returns {boolean} fetchOld status. If true, this subscriber will receive old persisted message in path
+   */
+  get fetchOld() {
+    return this._fetchOld;
+  }
+
+  /**
+   * Set fetchOld
+   * @param {boolean} val - fetchOld status. If true, this subscriber will receive old persisted messages in path
+   */
+  set fetchOld(val) {
+    this._fetchOld = val;
   }
 
   /**
@@ -155,9 +190,20 @@ class PubSub {
         this.publish({ to: `$listenOn.${path}`, dat: true });
       }
 
-      if (path in this._oldMsgs) {
-        const oldMsg = this._oldMsgs[path];
-        subscriber._process(path, oldMsg);
+      if (subscriber.fetchOld) {
+        if (subscriber.recursiveOld) {
+          Object.keys(this._oldMsgs).forEach(oldPath => {
+            if (oldPath.startsWith(`${path}.`) || oldPath === path) {
+              const oldMsg = this._oldMsgs[oldPath];
+              subscriber._process(path, oldMsg);
+            }
+          });
+        } else {
+          if(path in this._oldMsgs){
+            const oldMsg = this._oldMsgs[path];
+            subscriber._process(path, oldMsg);
+          }
+        }
       }
     });
   }
@@ -279,7 +325,7 @@ class PubSub {
           clearTimeout(timeOutId);
         }
       };
-      sub = this.subscribe(cfg, { hidden: true });
+      sub = this.subscribe(cfg, { hidden: true, fetchOld: false });
 
       const cnt = this.publish({
         to,

@@ -310,7 +310,7 @@ test("messages published with persist==true on other paths should not be receive
   expect(receivedB).toStrictEqual([]);
 });
 
-test("messages published with persist==true are not available parent subscribers", () => {
+test("messages published with persist==true are not available for parent subscribers by default", () => {
   const ps = new fastps.PubSub();
   const receivedA = [];
 
@@ -323,6 +323,37 @@ test("messages published with persist==true are not available parent subscribers
   });
 
   expect(receivedA).toStrictEqual([]);
+});
+
+test("messages published with persist==true are not available for subscribers with property fetchOld = false", () => {
+  const ps = new fastps.PubSub();
+  const receivedA = [];
+
+  ps.publish({ to: "a", dat: 1, persist: true });
+
+  const sub = ps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    }
+  }, { fetchOld: false });
+
+  expect(sub.fetchOld).toStrictEqual(false);
+  expect(receivedA).toStrictEqual([]);
+});
+
+test("messages published with persist==true are available for parent subscribers with property recursiveOld = true", () => {
+  const ps = new fastps.PubSub();
+  const receivedA = [];
+
+  ps.publish({ to: "a.b", dat: 1, persist: true });
+
+  ps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    }
+  }, { recursiveOld: true });
+
+  expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1, persist: true, old: true }]);
 });
 
 test("don't modify original messages sent with persist", () => {
@@ -499,14 +530,14 @@ test("check $listenOn internal messages", async () => {
       (msg) => {
         received.push(msg);
       }
-  }, {hidden: true});
+  }, { hidden: true });
 
   const sub1 = ps.subscribe({ 'a': () => { } });
   const sub2 = ps.subscribe({ 'a.b': () => { } });
   const sub3 = ps.subscribe({ 'a.b': () => { } });
   const sub4 = ps.subscribe({ 'a.b.c': () => { } });
   const sub5 = ps.subscribe({ 'j': () => { } });
-  const sub6 = ps.subscribe({ 'z': () => { } }, {hidden: true}); // $listenOn.z should not be published since it is hidden
+  const sub6 = ps.subscribe({ 'z': () => { } }, { hidden: true }); // $listenOn.z should not be published since it is hidden
   sub3.unsubscribeAll();
   sub1.unsubscribeAll();
   sub6.unsubscribe('z'); // $listenOn.z should not be published since it is hidden
@@ -521,10 +552,10 @@ test("check $listenOn internal messages", async () => {
 
 test("check hidden subscriptions", async () => {
   const ps = new fastps.PubSub();
-  const sub = new fastps.Subscriber(ps, {hidden: true});
-  
+  const sub = new fastps.Subscriber(ps, { hidden: true });
+
   sub.subscribe({ 'a': () => { } });
-  
+
   expect(ps.numSubscribers('a')).toStrictEqual(0);
   expect(ps.publish({ to: "a", dat: 1 })).toStrictEqual(0);
 });
