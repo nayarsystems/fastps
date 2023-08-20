@@ -260,7 +260,7 @@ test("messages published with persist==true are available for late subscribers",
     a: msg => {
       receivedA.push(msg);
     }
-  });
+  }, { fetchOld: true });
 
   expect(receivedA).toStrictEqual([
     {
@@ -283,7 +283,7 @@ test("subscribers to messages published with persist==true get the last value", 
     a: msg => {
       receivedA.push(msg);
     }
-  });
+  }, { fetchOld: true });
 
   expect(receivedA).toStrictEqual([
     {
@@ -305,9 +305,25 @@ test("messages published with persist==true on other paths should not be receive
     b: msg => {
       receivedB.push(msg);
     }
-  });
+  },{fetchOld: true});
 
   expect(receivedB).toStrictEqual([]);
+});
+
+test("messages published with persist==false clean old persisted message", () => {
+  const ps = new fastps.PubSub();
+  const receivedA = [];
+
+  ps.publish({ to: "a", dat: 1, persist: true });
+  ps.publish({ to: "a", dat: 1}); // this should clean old persisted message
+
+  ps.subscribe({
+    a: msg => {
+      receivedA.push(msg);
+    }
+  },{ fetchOld: true});
+
+  expect(receivedA).toStrictEqual([]);
 });
 
 test("messages published with persist==true are not available for parent subscribers by default", () => {
@@ -320,7 +336,7 @@ test("messages published with persist==true are not available for parent subscri
     a: msg => {
       receivedA.push(msg);
     }
-  });
+  }, { fetchOld: true });
 
   expect(receivedA).toStrictEqual([]);
 });
@@ -337,6 +353,8 @@ test("messages published with persist==true are not available for subscribers wi
     }
   }, { fetchOld: false });
 
+  ps.publish({ to: "a", dat: 1, persist: true, old: true }); // latter publish with old:true should not be received
+
   expect(sub.fetchOld).toStrictEqual(false);
   expect(receivedA).toStrictEqual([]);
 });
@@ -351,7 +369,7 @@ test("messages published with persist==true are available for parent subscribers
     a: msg => {
       receivedA.push(msg);
     }
-  }, { recursiveOld: true });
+  }, { fetchOld: true, recursiveOld: true });
 
   expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1, persist: true, old: true }]);
 });
@@ -368,7 +386,7 @@ test("don't modify original messages sent with persist", () => {
     a: msg => {
       receivedA.push(msg);
     }
-  });
+  }, { fetchOld: true });
 
   expect(origMsg).toStrictEqual({ to: "a", dat: 1, persist: true });
 });
@@ -517,6 +535,7 @@ test("get list of all paths subscribed to", async () => {
   ps.subscribe({ 'a.b': () => { } });
   ps.subscribe({ 'a.b.c': () => { } });
   ps.subscribe({ 'j': () => { } });
+  ps.subscribe({ 'z': () => { } }, { hidden: true }); // not returned since it is hidden
 
   expect(ps.getAllPaths()).toStrictEqual(['a', 'a.b', 'a.b.c', 'j']);
 });

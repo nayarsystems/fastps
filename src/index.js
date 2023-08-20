@@ -32,7 +32,7 @@ class Subscriber {
     this._ps = pubsub;
     this._cfg = {};
     this.hidden = opts.hidden ?? false;
-    this.fetchOld = opts.fetchOld ?? true;
+    this.fetchOld = opts.fetchOld ?? false;
     this.recursiveOld = opts.recursiveOld ?? false;
   }
 
@@ -86,6 +86,9 @@ class Subscriber {
    */
   _process(path, msg) {
     if (path in this._cfg) {
+      if (msg.old && !this.fetchOld) {
+        return;
+      }
       this._cfg[path](msg);
     }
   }
@@ -205,7 +208,7 @@ class PubSub {
             }
           });
         } else {
-          if(path in this._oldMsgs){
+          if (path in this._oldMsgs) {
             const oldMsg = this._oldMsgs[path];
             subscriber._process(path, oldMsg);
           }
@@ -275,6 +278,8 @@ class PubSub {
 
     if (msg.persist) {
       this._oldMsgs[msg.to] = { ...msg, old: true };
+    } else {
+      delete this._oldMsgs[msg.to];
     }
     return count;
   }
