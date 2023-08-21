@@ -33,7 +33,7 @@ class Subscriber {
     this._ps = pubsub;
     this._cfg = {};
     this.hidden = opts.hidden ?? false;
-    this.fetchOld = opts.fetchOld ?? false;
+    this.fetchOld = opts.fetchOld ?? true;
     this.recursiveOld = opts.recursiveOld ?? false;
   }
 
@@ -152,6 +152,15 @@ class Subscriber {
    */
   subscriptions() {
     return Object.keys(this._cfg);
+  }
+
+  /**
+   * 
+   * @param {string} path - path to check 
+   * @returns {boolean} true if subscribed to path 
+   */
+  isSubscribed(path) {
+    return path in this._cfg;
   }
 }
 
