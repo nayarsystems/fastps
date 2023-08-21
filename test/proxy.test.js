@@ -185,6 +185,27 @@ test("test Proxy", async () => {
     expect(recOn1).toMatchObject([{ to: "b", dat: "hello" }]);
     expect(recOn2).toMatchObject([{ to: "b", dat: "hello" }]);
 
+    // test persisted message on remote node before subscription
+    subscriber1.unsubscribeAll();
+    subscriber2.unsubscribeAll();
+    recOn1 = [];
+    recOn2 = [];
+
+    ps2.publish({ to: "a", dat: "hello", persist: true })
+    await sleep(10);
+    expect(recOn1).toStrictEqual([]);
+    subscriber1.subscribe(
+        {
+            "a": (msg) => {
+                recOn1.push(msg);
+                ps1.answer(msg, 'a');
+            },
+        });
+
+    await sleep(10);
+    expect(recOn1).toMatchObject([{ to: "a", dat: "hello", old: true }]);
+
+
     // test close proxies
     proxy1.close();
     proxy2.close();
