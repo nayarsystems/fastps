@@ -4,7 +4,8 @@
   "description": "Simple pub/sub",
   "contributors": [
     "Angel Jimenez <ajimenez@nayarsystems.com>",
-    "Pepe Aracil <pepe@nayarsystems.com>"],
+    "Pepe Aracil <pepe@nayarsystems.com>"
+  ],
   "license": "MIT",
   "main": "src/index.js",
   "repository": "https://github.com/nayarsystems/fastps",
@@ -12,7 +13,9 @@
     "test": "jest"
   },
   "devDependencies": {
-    "jest": "^29.6.2"
+    "jest": "^29.6.2",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2"
   },
   "keywords": [
     "pubsub",
@@ -22,7 +25,7 @@
     "bus",
     "events"
   ],
-    "jest": {
+  "jest": {
     "collectCoverage": true,
     "collectCoverageFrom": [
       "**/*.js",
