@@ -12,7 +12,6 @@ function filterLocalPaths(paths) {
     return filteredPaths;
 };
 
-
 class Proxy {
     constructor(transport, ps) {
         this._alive = true;
@@ -24,7 +23,8 @@ class Proxy {
         }
         this._ps = ps;
         this._sub = new fastps.Subscriber(this._ps);
-        this._retPath = "$" + makeid(10);
+        this._peerID = null
+        this._peerVersion = null;
         this._init();
     }
 
@@ -66,7 +66,14 @@ class Proxy {
         this._transport.onClose(() => {
             this._close();
         });
-        this._send({ "t": "hello", "d": { "version": 1 } })
+
+        this._transport.onMessage((msg) => {
+            this._processRemoteMessage(msg);
+        });
+        this._send({ "t": "hello", "d": { "version": "1.0", "id": this._ps.id } })
+    }
+
+    _onConnect() {
         const allSubs = this._ps.getAllPaths();
         this._sub.subscribe(
             {
@@ -74,15 +81,11 @@ class Proxy {
                     this._processNewLocalSubscription(msg);
                 },
 
-                [this._retPath]: (msg) => {
+                [this._peerID]: (msg) => {
                     this._relayMsg(msg);
                 }
             }, { "fetchOld": true }
         );
-
-        this._transport.onMessage((msg) => {
-            this._processRemoteMessage(msg);
-        });
         this._subscribeOnPeer(allSubs);
     }
 
@@ -112,10 +115,12 @@ class Proxy {
         }
         subPaths.shift();
         const path = subPaths.join(".");
-        if (this._sub.isSubscribed(path) && this._ps.numSubscribers(path) <= 1) { // Avoid subscription loops
+        const listeners = msg.dat;
+        if (this._sub.isSubscribed(path) && listeners == 1) { // Only this proxy is listening
+            this._unsubscribeOnPeer([path]);
             return;
         }
-        if (msg.dat) {
+        if (listeners > 0) {
             this._subscribeOnPeer([path]);
         } else {
             this._unsubscribeOnPeer([path]);
@@ -123,12 +128,8 @@ class Proxy {
     }
 
     _relayMsg(msg) {
-        if (msg.hops !== undefined && msg.hops.includes(this._retPath)) {
+        if (msg.hops !== undefined && msg.hops.includes(this._peerID)) {
             return;
-        }
-        if (msg.to.startsWith(`${this._retPath}.`)) {
-            msg = { ...msg };
-            msg.to = msg.to.slice(this._retPath.length + 1);
         }
         this._send({ "t": "publish", "d": msg });
     }
@@ -136,28 +137,41 @@ class Proxy {
     _processRemoteMessage(msg) {
         if (msg.t === "publish") {
             let m = { ...msg.d };
-            if (m.res) {
-                m.res = `${this._retPath}.${m.res}`;
+            if (m.res && !m.res.startsWith("nod::")) {
+                m.res = `${this._peerID}.${m.res}`;
+            }
+            if (m.to.startsWith(`${this._ps.id}.`)) {
+                m.to = m.to.slice(this._ps.id.length + 1);
             }
             if (m.hops === undefined) {
                 m.hops = [];
             }
-            m.hops.push(this._retPath);
+            if (m.hops.includes(this._ps.id)) {
+                return;
+            }
+            m.hops.push(this._peerID);
             this._ps.publish(m);
         } else if (msg.t === "subscribe") {
             msg.d.forEach(path => {
-                this._sub.subscribe({
-                    [path]: (msg) => {
-                        this._relayMsg(msg);
-                    }
-                });
+                if (!this._sub.isSubscribed(path)) {
+                    this._sub.subscribe({
+                        [path]: (msg) => {
+                            this._relayMsg(msg);
+                        }
+                    });
+                }
             });
         } else if (msg.t === "unsubscribe") {
-            msg.d.forEach(path => {
-                this._sub.unsubscribe(path);
-            });
+            if (this._sub.isSubscribed(msg.d)) {
+                msg.d.forEach(path => {
+                    this._sub.unsubscribe(path);
+                });
+            }
         } else if (msg.t === "hello") {
+            this._peerID = msg.d.id;
+            this._peerVersion = msg.d.version;
             this._connected = true;
+            this._onConnect();
         }
     }
 }

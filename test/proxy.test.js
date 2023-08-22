@@ -7,7 +7,60 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-test("test Proxy", async () => {
+test("proxy pair open / close test", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+
+    let proxy1Closed = 0;
+    let proxy2Closed = 0;
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+
+    proxy1.onClose(() => { proxy1Closed++ })
+    proxy2.onClose(() => { proxy2Closed++ })
+    await sleep(10);
+    expect(proxy1.alive).toBe(true);
+    expect(proxy2.alive).toBe(true);
+    expect(proxy1.connected).toBe(true);
+    expect(proxy2.connected).toBe(true);
+    expect(ps1.getAllPaths().includes(ps2.id)).toBe(true);
+    expect(ps2.getAllPaths().includes(ps1.id)).toBe(true);
+    await sleep(10);
+
+    // test close
+    proxy1.close();
+    proxy2.close();
+    await sleep(10)
+    expect(proxy1.alive).toBe(false);
+    expect(proxy2.alive).toBe(false);
+    expect(proxy1.connected).toBe(false);
+    expect(proxy2.connected).toBe(false);
+    expect(proxy1Closed).toBe(1);
+    expect(proxy2Closed).toBe(1);
+
+    // test double close
+    await sleep(10);
+    proxy1.close();
+    proxy2.close();
+    await sleep(10)
+    expect(proxy1.alive).toBe(false);
+    expect(proxy2.alive).toBe(false);
+    expect(proxy1.connected).toBe(false);
+    expect(proxy2.connected).toBe(false);
+    expect(proxy1Closed).toBe(1);
+    expect(proxy2Closed).toBe(1);
+    
+    // latter close callbacks are triggered inmediatly
+    proxy1.onClose(() => { proxy1Closed++ })
+    expect(proxy1Closed).toBe(2);
+
+});
+
+test("test subscriptions before conection are synced", async () => {
     const { port1, port2 } = new MessageChannel();
     const transport1 = new MessagePortTransport(port1);
     const transport2 = new MessagePortTransport(port2);
@@ -15,11 +68,6 @@ test("test Proxy", async () => {
     const ps2 = new fastps.PubSub();
     const subscriber1 = new fastps.Subscriber(ps1);
     const subscriber2 = new fastps.Subscriber(ps2);
-    let transport1Closed = 0;
-    let transport2Closed = 0;
-
-    transport1.onClose(() => { transport1Closed++ })
-    transport2.onClose(() => { transport2Closed++ })
 
     let recOn1 = [];
     let recOn2 = [];
@@ -43,9 +91,8 @@ test("test Proxy", async () => {
     const proxy1 = new Proxy(transport1, ps1);
     const proxy2 = new Proxy(transport2, ps2);
 
-    await sleep(10)
-    expect(transport1Closed).toBe(0);
-    expect(transport2Closed).toBe(0);
+    await sleep(10);
+
     expect(proxy1.alive).toBe(true);
     expect(proxy2.alive).toBe(true);
     expect(proxy1.connected).toBe(true);
@@ -80,10 +127,26 @@ test("test Proxy", async () => {
     expect(ps2.numSubscribers("on-ps2-pre")).toBe(0);
 
 
+    proxy1.close();
+    proxy2.close();
+});
 
-    // test subscriptions after proxy creation
-    recOn1 = [];
-    recOn2 = [];
+test("test subscriptions aftert conection are synced", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    const subscriber2 = new fastps.Subscriber(ps2);
+
+    let recOn1 = [];
+    let recOn2 = [];
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+
+    await sleep(10);
 
     subscriber1.subscribe(
         {
@@ -100,7 +163,20 @@ test("test Proxy", async () => {
                 ps2.answer(msg, 2);
             }
         });
-    await sleep(10)
+
+
+    await sleep(10);
+
+    expect(proxy1.alive).toBe(true);
+    expect(proxy2.alive).toBe(true);
+    expect(proxy1.connected).toBe(true);
+    expect(proxy2.connected).toBe(true);
+    expect(ps1.numSubscribers("on-ps1")).toBe(1);
+    expect(ps1.numSubscribers("on-ps2")).toBe(1);
+    expect(ps2.numSubscribers("on-ps1")).toBe(1);
+    expect(ps2.numSubscribers("on-ps2")).toBe(1);
+
+    // test subscriptions after proxy creation
     ps2.publish({ "to": "on-ps1", "dat": "hello" });
     ps1.publish({ "to": "on-ps2", "dat": "hello" });
     await sleep(10)
@@ -109,39 +185,82 @@ test("test Proxy", async () => {
     expect(ps1.getAllPaths()).toEqual(expect.arrayContaining(["on-ps1", "on-ps2"]));
     expect(ps2.getAllPaths()).toEqual(expect.arrayContaining(["on-ps1", "on-ps2"]));
 
-    // call a method on the remote subscriber
-    let res = await ps1.call("on-ps2", "hello");
-    expect(res).toBe(2);
-    res = await ps2.call("on-ps1", "hello");
-    expect(res).toBe(1);
-
-    // send a message to local subscriber
-    recOn1 = [];
-    recOn2 = [];
-    res = await ps1.call("on-ps1", "hello");
-    expect(res).toBe(1);
-    expect(recOn1).toMatchObject([{ "to": "on-ps1", "dat": "hello" }]);
-    expect(recOn2).toStrictEqual([]);
-
-    recOn1 = [];
-    recOn2 = [];
-    res = await ps2.call("on-ps2", "hello");
-    expect(res).toBe(2);
-    expect(recOn1).toStrictEqual([]);
-    expect(recOn2).toMatchObject([{ "to": "on-ps2", "dat": "hello" }]);
-
     // test unsubscriptions
-    subscriber1.unsubscribeAll();
-    subscriber2.unsubscribeAll();
-    await sleep(10);
-    expect(ps1.getAllPaths()).toEqual(expect.not.arrayContaining(["on-ps1", "on-ps2"]));
-    expect(ps2.getAllPaths()).toEqual(expect.not.arrayContaining(["on-ps1", "on-ps2"]));
+    subscriber1.unsubscribe("on-ps1");
+    await sleep(10)
+    expect(ps1.numSubscribers("on-ps1")).toBe(0);
+    expect(ps2.numSubscribers("on-ps1")).toBe(0);
+    expect(ps1.numSubscribers("on-ps2")).toBe(1);
+    expect(ps2.numSubscribers("on-ps2")).toBe(1);
 
-    // test duplicated subscriptions in both proxies 
-    recOn1 = [];
-    recOn2 = [];
-    subscriber1.unsubscribeAll();
-    subscriber2.unsubscribeAll();
+    subscriber2.unsubscribe("on-ps2");
+    await sleep(10)
+    expect(ps1.numSubscribers("on-ps1")).toBe(0);
+    expect(ps2.numSubscribers("on-ps1")).toBe(0);
+    expect(ps1.numSubscribers("on-ps2")).toBe(0);
+    expect(ps2.numSubscribers("on-ps2")).toBe(0);
+
+
+    proxy1.close();
+    proxy2.close();
+});
+
+test("test cross call", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    const subscriber2 = new fastps.Subscriber(ps2);
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+
+    await sleep(10);
+
+    subscriber1.subscribe(
+        {
+            "on-ps1": (msg) => {
+                ps1.answer(msg, 1);
+            }
+        });
+
+    subscriber2.subscribe(
+        {
+            "on-ps2": (msg) => {
+                ps2.answer(msg, 2);
+            }
+        });
+
+    await sleep(10);
+
+    // cross call
+    expect(await ps1.call("on-ps2", 0)).toBe(2);
+    expect(await ps2.call("on-ps1", 0)).toBe(1);
+
+    // Same node call
+    expect(await ps1.call("on-ps1", 0)).toBe(1);
+    expect(await ps2.call("on-ps2", 0)).toBe(2);
+
+    proxy1.close();
+    proxy2.close();
+});
+
+test("test duplicated subscriptions in both nodes", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    const subscriber2 = new fastps.Subscriber(ps2);
+
+    let recOn1 = [];
+    let recOn2 = [];
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
 
     subscriber1.subscribe(
         {
@@ -185,43 +304,95 @@ test("test Proxy", async () => {
     expect(recOn1).toMatchObject([{ to: "b", dat: "hello" }]);
     expect(recOn2).toMatchObject([{ to: "b", dat: "hello" }]);
 
-    // test persisted message on remote node before subscription
     subscriber1.unsubscribeAll();
     subscriber2.unsubscribeAll();
-    recOn1 = [];
-    recOn2 = [];
+    await sleep(10);
+    expect(ps1.numSubscribers("a")).toBe(0);
+    expect(ps1.numSubscribers("b")).toBe(0);
+    expect(ps2.numSubscribers("a")).toBe(0);
+    expect(ps2.numSubscribers("b")).toBe(0);
+    
+    proxy1.close();
+    proxy2.close();
+});
 
-    ps2.publish({ to: "a", dat: "hello", persist: true })
+test("test persisted message on remote node before subscription", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    const subscriber2 = new fastps.Subscriber(ps2);
+
+    let recOn1 = [];
+    let recOn2 = [];
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+    await sleep(10);
+
+    ps2.publish({ to: "persisted", dat: "hello", persist: true })
     await sleep(10);
     expect(recOn1).toStrictEqual([]);
     subscriber1.subscribe(
         {
-            "a": (msg) => {
+            "persisted": (msg) => {
                 recOn1.push(msg);
-                ps1.answer(msg, 'a');
+                ps1.answer(msg, 'persisted');
             },
         });
 
     await sleep(10);
-    expect(recOn1).toMatchObject([{ to: "a", dat: "hello", old: true }]);
+    expect(recOn1).toMatchObject([{ to: "persisted", dat: "hello", old: true }]);
 
+    subscriber1.unsubscribeAll();
+    subscriber2.unsubscribeAll();
+    await sleep(10);
+    expect(ps1.numSubscribers("persisted")).toBe(0);
+    expect(ps2.numSubscribers("persisted")).toBe(0);
 
-    // test close proxies
     proxy1.close();
     proxy2.close();
-    await sleep(10)
-    expect(proxy1.alive).toBe(false);
-    expect(proxy2.alive).toBe(false);
-    expect(proxy1.connected).toBe(false);
-    expect(proxy2.connected).toBe(false);
-    expect(transport1Closed).toBe(1);
-    expect(transport2Closed).toBe(1);
+});
 
-    // close again
+test("test persisted message on remote node before subscription fetchOld = false", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    const subscriber2 = new fastps.Subscriber(ps2);
+
+    let recOn1 = [];
+    let recOn2 = [];
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+    await sleep(10);
+
+    ps2.publish({ to: "persisted", dat: "hello", persist: true })
+    await sleep(10);
+    expect(recOn1).toStrictEqual([]);
+    subscriber1.fetchOld = false;
+    subscriber1.subscribe(
+        {
+            "persisted": (msg) => {
+                recOn1.push(msg);
+                ps1.answer(msg, 'persisted');
+            },
+        });
+
+    await sleep(10);
+    expect(recOn1).toStrictEqual([]);
+
+    subscriber1.unsubscribeAll();
+    subscriber2.unsubscribeAll();
+    await sleep(10);
+    expect(ps1.numSubscribers("persisted")).toBe(0);
+    expect(ps2.numSubscribers("persisted")).toBe(0);
+
     proxy1.close();
     proxy2.close();
-    await sleep(10)
-    expect(transport1Closed).toBe(1);
-    expect(transport2Closed).toBe(1);
-
 });

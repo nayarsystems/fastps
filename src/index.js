@@ -1,3 +1,5 @@
+const makeid = require("./utils/makeId.js");
+
 let defaultPubSub = null;
 
 /**
@@ -172,6 +174,14 @@ class PubSub {
     this._subs = {};
     this._oldMsgs = {};
     this._respCnt = 0;
+    this._id = `nod::${makeid(10)}`
+  }
+
+  /**
+   * Get PubSub instance id
+   */
+  get id() {
+    return this._id;
   }
 
   /**
@@ -221,15 +231,16 @@ class PubSub {
    */
   _subscribe(cfg, subscriber) {
     Object.keys(cfg).forEach(path => {
-      const lastNumSubs = this.numSubscribers(path);
+      const prevSubs = this.numSubscribers(path);
       if (!(path in this._subs)) {
         this._subs[path] = new Set();
       }
 
       this._subs[path].add(subscriber);
 
-      if (this.numSubscribers(path) === 1 && lastNumSubs === 0) {
-        this.publish({ to: `$listenOn.${path}`, dat: true });
+      const actualSubs = this.numSubscribers(path);
+      if (actualSubs != prevSubs) {
+        this.publish({ to: `$listenOn.${path}`, dat: actualSubs });
       }
 
       if (subscriber.fetchOld) {
@@ -254,17 +265,17 @@ class PubSub {
    * @private
    */
   _unsubscribe(path, subscriber) {
-    const lastNumSubs = this.numSubscribers(path);
+    const prevSubs = this.numSubscribers(path);
     if (path in this._subs) {
       this._subs[path].delete(subscriber);
       if (this._subs[path].size === 0) {
         delete this._subs[path];
       }
     }
-    if (this.numSubscribers(path) === 0 && lastNumSubs > 0) {
-      this.publish({ to: `$listenOn.${path}`, dat: false });
+    const actualSubs = this.numSubscribers(path);
+    if (actualSubs != prevSubs) {
+      this.publish({ to: `$listenOn.${path}`, dat: actualSubs });
     }
-
   }
 
   /**

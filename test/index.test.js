@@ -587,11 +587,13 @@ test("check $listenOn internal messages", async () => {
   sub6.unsubscribe('z'); // $listenOn.z should not be published since it is hidden
 
   expect(received).toStrictEqual([
-    { to: '$listenOn.a', dat: true },
-    { to: '$listenOn.a.b', dat: true },
-    { to: '$listenOn.a.b.c', dat: true },
-    { to: '$listenOn.j', dat: true },
-    { to: '$listenOn.a', dat: false }]);
+    { to: '$listenOn.a', dat: 1 },
+    { to: '$listenOn.a.b', dat: 1 },
+    { to: '$listenOn.a.b', dat: 2 },
+    { to: '$listenOn.a.b.c', dat: 1 },
+    { to: '$listenOn.j', dat: 1 },
+    { to: '$listenOn.a.b', dat: 1 },
+    { to: '$listenOn.a', dat: 0 }]);
 });
 
 test("check hidden subscriptions", async () => {
