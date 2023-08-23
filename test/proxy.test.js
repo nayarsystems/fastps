@@ -374,10 +374,9 @@ test("test persisted message on remote node before subscription fetchOld = false
     ps2.publish({ to: "persisted", dat: "hello", persist: true })
     await sleep(10);
     expect(recOn1).toStrictEqual([]);
-    subscriber1.fetchOld = false;
     subscriber1.subscribe(
         {
-            "persisted": (msg) => {
+            'persisted #{"fetchOld":false}': (msg) => {
                 recOn1.push(msg);
                 ps1.answer(msg, 'persisted');
             },

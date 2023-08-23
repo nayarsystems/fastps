@@ -84,7 +84,7 @@ class Proxy {
                 [this._peerID]: (msg) => {
                     this._relayMsg(msg);
                 }
-            }, { "fetchOld": true }
+            }
         );
         this._subscribeOnPeer(allSubs);
     }
@@ -137,12 +137,6 @@ class Proxy {
     _processRemoteMessage(msg) {
         if (msg.t === "publish") {
             let m = { ...msg.d };
-            if (m.res && !m.res.startsWith("nod::")) {
-                m.res = `${this._peerID}.${m.res}`;
-            }
-            if (m.to.startsWith(`${this._ps.id}.`)) {
-                m.to = m.to.slice(this._ps.id.length + 1);
-            }
             if (m.hops === undefined) {
                 m.hops = [];
             }
@@ -150,6 +144,16 @@ class Proxy {
                 return;
             }
             m.hops.push(this._peerID);
+            if (m.old && this._ps.getOldMsg(m.to) !== undefined) { // prefer local old messages
+                return;
+            }
+
+            if (m.res && !m.res.startsWith("nod::")) {
+                m.res = `${this._peerID}.${m.res}`;
+            }
+            if (m.to.startsWith(`${this._ps.id}.`)) {
+                m.to = m.to.slice(this._ps.id.length + 1);
+            }
             this._ps.publish(m);
         } else if (msg.t === "subscribe") {
             msg.d.forEach(path => {

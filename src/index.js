@@ -30,16 +30,13 @@ class Subscriber {
   /** Create a Subscriber
    * @param {PubSub} - PubSub object
    */
-  constructor(pubsub, opts = {}) {
+  constructor(pubsub) {
     this._alive = true;
     this._ps = pubsub;
     this._cfg = {};
-    this.hidden = opts.hidden ?? false;
-    this.fetchOld = opts.fetchOld ?? true;
-    this.recursiveOld = opts.recursiveOld ?? false;
   }
 
-  
+
   /**
    * Kill subscriber, unsubscribe from all paths and release resources
    */
@@ -61,58 +58,27 @@ class Subscriber {
   }
 
   /**
-   * Get recursiveOld
-   * @returns {boolean} recursiveOld status. If true, this subscriber will also receive old persisted messages in subpaths
+   * Get attr
+   * @param {string} path - path to get attr
+   * @returns {any} attr
    */
-  get recursiveOld() {
-    return this._recursiveOld;
+  getAttr(path) {
+    if (path in this._cfg) {
+      return this._cfg[path][1];
+    } else {
+      return {};
+    }
   }
-
-  /**
-   * Set recursiveOld
-   * @param {boolean} val - recursiveOld status. If true, this subscriber will also receive old persisted messages in subpaths
-   */
-  set recursiveOld(val) {
-    this._recursiveOld = val;
-  }
-
-  /**
-   * Get fetchOld
-   * @returns {boolean} fetchOld status. If true, this subscriber will receive old persisted message in path
-   */
-  get fetchOld() {
-    return this._fetchOld;
-  }
-
-  /**
-   * Set fetchOld
-   * @param {boolean} val - fetchOld status. If true, this subscriber will receive old persisted messages in path
-   */
-  set fetchOld(val) {
-    this._fetchOld = val;
-  }
-
-  /**
-   * Get hidden
-   * @returns {boolean} hidden status. If true, this subscriber will not count for the number of subscribers to a path
-   */
-  get hidden() { return this._hidden; }
-
-  /**
-   * Set hidden
-   * @param {boolean} val - hidden status. If true, this subscriber will not count for the number of subscribers to a path
-   */
-  set hidden(val) { this._hidden = val; }
 
   /**
    * @private
    */
   _process(path, msg) {
     if (this._alive && path in this._cfg) {
-      if (msg.old && !this.fetchOld) {
+      if (msg.old && !(this.getAttr(path).fetchOld ?? true)) {
         return;
       }
-      this._cfg[path](msg);
+      this._cfg[path][0](msg);
     }
   }
 
@@ -124,8 +90,16 @@ class Subscriber {
     if (!this._alive) {
       return;
     }
-    Object.assign(this._cfg, cfg);
-    this._ps._subscribe(cfg, this);
+    Object.entries(cfg).forEach(([rawPath, callback]) => {
+      let [path, flags] = rawPath.split("#");
+      if (flags == undefined) {
+        flags = "{}";
+      }
+      path = path.trim();
+      flags = JSON.parse(flags);
+      this._cfg[path] = [callback, flags];
+      this._ps._subscribe(path, this);
+    });
   }
 
   /**
@@ -135,8 +109,8 @@ class Subscriber {
   unsubscribe(...paths) {
     paths.forEach(path => {
       if (path in this._cfg) {
-        delete this._cfg[path];
         this._ps._unsubscribe(path, this);
+        delete this._cfg[path];
       }
     });
   }
@@ -185,12 +159,21 @@ class PubSub {
   }
 
   /**
+   * 
+   * @param {string} path - path to get old message
+   * @returns {Msg} old message
+   */
+  getOldMsg(path) {
+    return this._oldMsgs[path];
+  }
+
+  /**
    * Subscribe to paths
    * @param {Cfg} cfg - Subscription config
    * @returns {Subscriber} Subscriber created
    */
-  subscribe(cfg, opts = {}) {
-    const sub = new Subscriber(this, opts);
+  subscribe(cfg) {
+    const sub = new Subscriber(this);
     sub.subscribe(cfg);
     return sub;
   }
@@ -206,7 +189,7 @@ class PubSub {
     }
     let cnt = 0;
     this._subs[path].forEach(sub => {
-      if (!sub.hidden) {
+      if (!(sub.getAttr(path).hidden ?? false)) {
         cnt++;
       }
     });
@@ -229,36 +212,34 @@ class PubSub {
   /**
    * @private
    */
-  _subscribe(cfg, subscriber) {
-    Object.keys(cfg).forEach(path => {
-      const prevSubs = this.numSubscribers(path);
-      if (!(path in this._subs)) {
-        this._subs[path] = new Set();
-      }
+  _subscribe(path, subscriber) {
+    const prevSubs = this.numSubscribers(path);
+    if (!(path in this._subs)) {
+      this._subs[path] = new Set();
+    }
 
-      this._subs[path].add(subscriber);
+    this._subs[path].add(subscriber);
 
-      const actualSubs = this.numSubscribers(path);
-      if (actualSubs != prevSubs) {
-        this.publish({ to: `$listenOn.${path}`, dat: actualSubs });
-      }
+    const actualSubs = this.numSubscribers(path);
+    if (actualSubs != prevSubs) {
+      this.publish({ to: `$listenOn.${path}`, dat: actualSubs });
+    }
 
-      if (subscriber.fetchOld) {
-        if (subscriber.recursiveOld) {
-          Object.keys(this._oldMsgs).forEach(oldPath => {
-            if (oldPath.startsWith(`${path}.`) || oldPath === path) {
-              const oldMsg = this._oldMsgs[oldPath];
-              subscriber._process(path, oldMsg);
-            }
-          });
-        } else {
-          if (path in this._oldMsgs) {
-            const oldMsg = this._oldMsgs[path];
+    if (subscriber.getAttr(path).fetchOld ?? true) {
+      if (subscriber.getAttr(path).recursiveOld ?? false) {
+        Object.keys(this._oldMsgs).forEach(oldPath => {
+          if (oldPath.startsWith(`${path}.`) || oldPath === path) {
+            const oldMsg = this._oldMsgs[oldPath];
             subscriber._process(path, oldMsg);
           }
+        });
+      } else {
+        if (path in this._oldMsgs) {
+          const oldMsg = this._oldMsgs[path];
+          subscriber._process(path, oldMsg);
         }
       }
-    });
+    }
   }
 
   /**
@@ -290,7 +271,7 @@ class PubSub {
       if (msg.to in this._subs) {
         this._subs[msg.to].forEach(sub => {
           sub._process(msg.to, msg);
-          if (!sub.hidden) {
+          if (!(sub.getAttr(msg.to).hidden ?? false)) {
             count++;
           }
         });
@@ -310,7 +291,7 @@ class PubSub {
           this._subs[path].forEach(sub => {
             if (!dups.has(sub)) {
               sub._process(path, msg);
-              if (!sub.hidden) {
+              if (!(sub.getAttr(path).hidden ?? false)) {
                 count++;
               }
               dups.add(sub);
@@ -369,7 +350,7 @@ class PubSub {
       }
 
       const cfg = {};
-      cfg[res] = msg => {
+      cfg[`${res}#{"hidden":true, "fetchOld":false}`] = msg => {
         if (msg.err) {
           reject(msg.err);
         } else {
@@ -380,7 +361,7 @@ class PubSub {
           clearTimeout(timeOutId);
         }
       };
-      sub = this.subscribe(cfg, { hidden: true, fetchOld: false });
+      sub = this.subscribe(cfg);
 
       const cnt = this.publish({
         to,

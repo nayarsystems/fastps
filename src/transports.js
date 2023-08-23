@@ -53,5 +53,5 @@ class SocketIOTransport {
 
 module.exports = {
     MessagePortTransport,
-    SocketIOTransport
+    SocketIOTransport,
 };

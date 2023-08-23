@@ -36,7 +36,7 @@ test("test MessagePortTransport", async () => {
     transport1.send("hello");
     transport2.send("world");
 
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(10);
 
     expect(transport2Msgs).toStrictEqual(["hello"]);
     expect(transport1Msgs).toStrictEqual(["world"]);
@@ -44,7 +44,7 @@ test("test MessagePortTransport", async () => {
     transport1.close();
     transport2.close();
 
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(10);
 
     expect(transport2Msgs).toStrictEqual(["hello", "closed"]);
     expect(transport1Msgs).toStrictEqual(["world", "closed"]);
@@ -101,7 +101,7 @@ test("test SocketIOTransport", async () => {
     transport1.close();
     transport2.close();
 
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await sleep(10);
 
     expect(transport2Msgs).toStrictEqual(["hello", "closed"]);
     expect(transport1Msgs).toStrictEqual(["world", "closed"]);

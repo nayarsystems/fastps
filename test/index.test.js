@@ -285,7 +285,7 @@ test("messages published with persist==true are available for late subscribers",
     a: msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: true });
+  });
 
   expect(receivedA).toStrictEqual([
     {
@@ -308,7 +308,7 @@ test("subscribers to messages published with persist==true get the last value", 
     a: msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: true });
+  });
 
   expect(receivedA).toStrictEqual([
     {
@@ -330,7 +330,7 @@ test("messages published with persist==true on other paths should not be receive
     b: msg => {
       receivedB.push(msg);
     }
-  },{fetchOld: true});
+  });
 
   expect(receivedB).toStrictEqual([]);
 });
@@ -346,7 +346,7 @@ test("messages published with persist==false clean old persisted message", () =>
     a: msg => {
       receivedA.push(msg);
     }
-  },{ fetchOld: true});
+  });
 
   expect(receivedA).toStrictEqual([]);
 });
@@ -361,7 +361,7 @@ test("messages published with persist==true are not available for parent subscri
     a: msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: true });
+  });
 
   expect(receivedA).toStrictEqual([]);
 });
@@ -373,14 +373,14 @@ test("messages published with persist==true are not available for subscribers wi
   ps.publish({ to: "a", dat: 1, persist: true });
 
   const sub = ps.subscribe({
-    a: msg => {
+    'a #{"fetchOld":false}': msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: false });
+  });
 
   ps.publish({ to: "a", dat: 1, persist: true, old: true }); // latter publish with old:true should not be received
 
-  expect(sub.fetchOld).toStrictEqual(false);
+  expect(sub.getAttr("a").fetchOld).toStrictEqual(false);
   expect(receivedA).toStrictEqual([]);
 });
 
@@ -391,10 +391,10 @@ test("messages published with persist==true are available for parent subscribers
   ps.publish({ to: "a.b", dat: 1, persist: true });
 
   ps.subscribe({
-    a: msg => {
+    'a #{"recursiveOld":true}': msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: true, recursiveOld: true });
+  });
 
   expect(receivedA).toStrictEqual([{ to: "a.b", dat: 1, persist: true, old: true }]);
 });
@@ -411,7 +411,7 @@ test("don't modify original messages sent with persist", () => {
     a: msg => {
       receivedA.push(msg);
     }
-  }, { fetchOld: true });
+  });
 
   expect(origMsg).toStrictEqual({ to: "a", dat: 1, persist: true });
 });
@@ -560,7 +560,7 @@ test("get list of all paths subscribed to", async () => {
   ps.subscribe({ 'a.b': () => { } });
   ps.subscribe({ 'a.b.c': () => { } });
   ps.subscribe({ 'j': () => { } });
-  ps.subscribe({ 'z': () => { } }, { hidden: true }); // not returned since it is hidden
+  ps.subscribe({ 'z #{"hidden":true}': () => { } }); // not returned since it is hidden
 
   expect(ps.getAllPaths()).toStrictEqual(['a', 'a.b', 'a.b.c', 'j']);
 });
@@ -570,18 +570,23 @@ test("check $listenOn internal messages", async () => {
   const received = [];
 
   let sub = ps.subscribe({
-    '$listenOn':
+    '$listenOn #{"hidden":true}':
       (msg) => {
         received.push(msg);
       }
-  }, { hidden: true });
+  });
 
   const sub1 = ps.subscribe({ 'a': () => { } });
   const sub2 = ps.subscribe({ 'a.b': () => { } });
   const sub3 = ps.subscribe({ 'a.b': () => { } });
   const sub4 = ps.subscribe({ 'a.b.c': () => { } });
   const sub5 = ps.subscribe({ 'j': () => { } });
-  const sub6 = ps.subscribe({ 'z': () => { } }, { hidden: true }); // $listenOn.z should not be published since it is hidden
+  const sub6 = ps.subscribe({ 'z #{"hidden":true}': () => { } }); // $listenOn.z should not be published since it is hidden
+  expect(ps.numSubscribers('a')).toStrictEqual(1);
+  expect(ps.numSubscribers('a.b')).toStrictEqual(2);
+  expect(ps.numSubscribers('a.b.c')).toStrictEqual(1);
+  expect(ps.numSubscribers('j')).toStrictEqual(1);
+  expect(ps.numSubscribers('z')).toStrictEqual(0);
   sub3.unsubscribeAll();
   sub1.unsubscribeAll();
   sub6.unsubscribe('z'); // $listenOn.z should not be published since it is hidden
@@ -598,9 +603,9 @@ test("check $listenOn internal messages", async () => {
 
 test("check hidden subscriptions", async () => {
   const ps = new fastps.PubSub();
-  const sub = new fastps.Subscriber(ps, { hidden: true });
+  const sub = new fastps.Subscriber(ps);
 
-  sub.subscribe({ 'a': () => { } });
+  sub.subscribe({ 'a #{"hidden":true}': () => { } });
 
   expect(ps.numSubscribers('a')).toStrictEqual(0);
   expect(ps.publish({ to: "a", dat: 1 })).toStrictEqual(0);
