@@ -12,6 +12,10 @@
   "scripts": {
     "test": "jest"
   },
+  "exports": {
+    ".": "./src/index.js",
+    "./*": "./src/*.js"
+  },
   "devDependencies": {
     "jest": "^29.6.2",
     "socket.io": "^4.7.2",
