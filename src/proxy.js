@@ -99,7 +99,6 @@ class Proxy {
     _unsubscribeOnPeer(paths) {
         const fpaths = filterLocalPaths(paths);
         if (fpaths.length) {
-
             this._send({ "t": "unsubscribe", "d": paths });
         }
     }

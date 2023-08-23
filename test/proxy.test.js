@@ -323,10 +323,8 @@ test("test persisted message on remote node before subscription", async () => {
     const ps1 = new fastps.PubSub();
     const ps2 = new fastps.PubSub();
     const subscriber1 = new fastps.Subscriber(ps1);
-    const subscriber2 = new fastps.Subscriber(ps2);
 
     let recOn1 = [];
-    let recOn2 = [];
 
     const proxy1 = new Proxy(transport1, ps1);
     const proxy2 = new Proxy(transport2, ps2);
@@ -347,7 +345,6 @@ test("test persisted message on remote node before subscription", async () => {
     expect(recOn1).toMatchObject([{ to: "persisted", dat: "hello", old: true }]);
 
     subscriber1.unsubscribeAll();
-    subscriber2.unsubscribeAll();
     await sleep(10);
     expect(ps1.numSubscribers("persisted")).toBe(0);
     expect(ps2.numSubscribers("persisted")).toBe(0);
@@ -395,6 +392,41 @@ test("test persisted message on remote node before subscription fetchOld = false
     proxy2.close();
 });
 
+test("test local persistent (old) messages are preferred to remote ones", async () => {
+    const { port1, port2 } = new MessageChannel();
+    const transport1 = new MessagePortTransport(port1);
+    const transport2 = new MessagePortTransport(port2);
+    const ps1 = new fastps.PubSub();
+    const ps2 = new fastps.PubSub();
+    const subscriber1 = new fastps.Subscriber(ps1);
+    
+    let recOn1 = [];
+
+    const proxy1 = new Proxy(transport1, ps1);
+    const proxy2 = new Proxy(transport2, ps2);
+    await sleep(10);
+    ps2.publish({ to: "persisted", dat: "hello", persist: true })
+    ps1.publish({ to: "persisted", dat: "world", persist: true })
+    await sleep(10);
+    expect(recOn1).toStrictEqual([]);
+    subscriber1.subscribe(
+        {
+            'persisted #{"fetchOld":true}': (msg) => {
+                recOn1.push(msg);
+                ps1.answer(msg, 'persisted');
+            },
+        });
+    await sleep(10);
+    expect(ps1.numSubscribers("persisted")).toBe(1);
+    expect(ps2.numSubscribers("persisted")).toBe(1);
+    expect(recOn1).toStrictEqual([{to:"persisted",dat:"world",old:true, persist:true}]);
+    subscriber1.unsubscribeAll();
+    await sleep(10);
+    expect(ps1.numSubscribers("persisted")).toBe(0);
+    expect(ps2.numSubscribers("persisted")).toBe(0);
+    proxy1.close();
+    proxy2.close();
+});
 
 test("test 3 nodes cross call ([ps1]====[ps2]====[ps3]", async () => {
     const { port1: portA1, port2: portA2 } = new MessageChannel();
