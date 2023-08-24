@@ -1,8 +1,9 @@
 const fastps = require("../src/index.js");
 const { MessagePortTransport, SocketIOTransport } = require("../src/transports.js");
 const { MessageChannel } = require('node:worker_threads');
-const { io } = require("socket.io-client");
+const { io: Client } = require("socket.io-client");
 const { Server } = require("socket.io");
+const { createServer } = require("node:http");
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,25 +52,26 @@ test("test MessagePortTransport", async () => {
 });
 
 test("test SocketIOTransport", async () => {
-    let socket1 = null
-    let socket2 = null
 
-    const server = new Server(3468, {
-        // options
-      });
-      
-      server.on("connection", (socket) => {
-        socket1 = socket;
-      });
+    let serverSocket, clientSocket, connectionDone;
 
-    socket2 = io("http://localhost:3468");
+    const httpServer = createServer();
+    let server = new Server(httpServer);
+    httpServer.listen(() => {
+        const port = httpServer.address().port;
+        clientSocket = new Client(`http://localhost:${port}`);
+        server.on("connection", (socket) => {
+            serverSocket = socket;
+        });
+        clientSocket.on("connect", () => {connectionDone = true;});
+    });
 
-    while (socket1 == null) {
-        await sleep(10);
+    while (!connectionDone) {
+        await sleep(1);
     }
 
-    const transport1 = new SocketIOTransport(socket1);
-    const transport2 = new SocketIOTransport(socket2);
+    const transport1 = new SocketIOTransport(serverSocket);
+    const transport2 = new SocketIOTransport(clientSocket);
 
     let transport1Msgs = [];
     let transport2Msgs = [];
